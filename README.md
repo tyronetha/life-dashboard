@@ -48,8 +48,13 @@ Every table has RLS (`user_id = auth.uid()`). The `dashboards` blob is retained 
 backup and for free-form bits (quotes, "currently", weights) until each feature's UI is
 switched over to the tables.
 
-**Status:** Phase 1 (schema + RLS + RPCs + scheduled job + blob migration) is live.
-Frontend wiring (Prep chapters → Applications grid → editable Calendar) is next.
+**Status:** Fully wired. The frontend (`data.js` data-access layer + `dashboard.js`)
+reads and writes the normalized tables — Prep chapters (add-as-you-go, cycle
+todo→reading→done, derived progress), the editable Applications grid (inline cells,
+status cycle, paste-from-spreadsheet import, batch upsert), and the editable Calendar
+(add events, per-occurrence removal, weekday recurrence with exceptions). `generate_day`
+runs on app open plus nightly via `pg_cron`. The `dashboards` blob still holds the
+free-form bits (leetcode solves, ood, goals, weights, quotes, "currently").
 
 ## Local development
 

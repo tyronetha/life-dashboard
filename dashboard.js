@@ -9,6 +9,8 @@ class Component extends DCLogic {
   iso(d) { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); }
   todayISO() { return this.iso(new Date()); }
   tomorrowISO() { const d = new Date(); d.setDate(d.getDate() + 1); return this.iso(d); }
+  newId() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('u' + Date.now() + Math.random().toString(16).slice(2)); }
+  db() { return (window.DB && window.DB.user) ? window.DB : null; }
 
   defaultData() {
     const t = this.todayISO();
@@ -57,15 +59,48 @@ class Component extends DCLogic {
   state = { data: null, view: 'home', weekOffset: 0 };
 
   async componentDidMount() {
-    let data = this.load();
-    try {
-      if (window.DB && window.DB.load) {
-        const remote = await window.DB.load();
+    let data = this.load();                       // blob: free-form bits + backup
+    const DB = this.db();
+    if (DB) {
+      try {
+        const remote = await DB.load();           // pull free-form bits (solves/goals/weights/quotes/currently)
         if (remote && Object.keys(remote).length) data = { ...this.defaultData(), ...remote };
-      }
-    } catch (e) { console.error('remote load failed', e); }
-    const migrated = this.runDailyGen(data);
-    this.setState({ data: migrated }, () => this.save());
+        await DB.generateDay();                   // server-side daily gen + one-off rollover (idempotent)
+        const t = await DB.loadTables();          // tables are the source of truth for the normalized entities
+        data = { ...data, routines: t.routines, tasks: t.tasks, apps: t.apps,
+                 books: t.books, chapters: t.chapters, calEvents: t.calEvents, calExceptions: t.calExceptions };
+        this.setState({ data }, () => this.save());
+        await this.ensureSeedCalendar(data);      // first run: seed the weekday routine as recurring events
+        return;
+      } catch (e) { console.error('table load failed, using local', e); }
+    }
+    data = this.runDailyGen(data);                // offline fallback
+    data.chapters = data.chapters || []; data.calEvents = data.calEvents || []; data.calExceptions = data.calExceptions || [];
+    this.setState({ data }, () => this.save());
+  }
+
+  // Seed the fixed weekday routine into the events table once, so the calendar
+  // starts populated but is now editable/persistent (recurrence rules).
+  async ensureSeedCalendar(data) {
+    const DB = this.db();
+    if (!DB || (data.calEvents && data.calEvents.length) || data._seededCal) return;
+    const move = 'oklch(0.6 0.08 245)', work = 'oklch(0.55 0.08 55)', meal = 'oklch(0.58 0.09 150)', career = 'oklch(0.6 0.1 200)', read = 'oklch(0.56 0.11 300)';
+    const wk = [1, 2, 3, 4, 5], all = [0, 1, 2, 3, 4, 5, 6];
+    const defs = [
+      { title: 'Wake → 15m', startMin: 510, endMin: 525, color: move, weekdays: wk },
+      { title: 'Workout', startMin: 525, endMin: 570, color: move, weekdays: [1, 3, 5] },
+      { title: 'HIIT', startMin: 525, endMin: 570, color: move, weekdays: [2, 4] },
+      { title: 'Work', startMin: 570, endMin: 1020, color: work, weekdays: wk },
+      { title: 'Leetcode', startMin: 1020, endMin: 1050, color: career, weekdays: wk },
+      { title: 'Job App', startMin: 1050, endMin: 1080, color: career, weekdays: wk },
+      { title: 'Dinner', startMin: 1080, endMin: 1110, color: meal, weekdays: all },
+      { title: 'Treadmill Walk', startMin: 1110, endMin: 1170, color: move, weekdays: wk },
+      { title: 'Shower / Chill', startMin: 1170, endMin: 1290, color: move, weekdays: wk },
+      { title: 'Casein shake', startMin: 1290, endMin: 1305, color: move, weekdays: wk },
+      { title: 'Book reading', startMin: 1320, endMin: 1365, color: read, weekdays: all },
+    ].map((e) => ({ ...e, id: this.newId(), date: this.todayISO(), recurs: 'weekly', source: 'routine' }));
+    await DB.insertEventsBulk(defs);
+    this.setState((s) => { const d = JSON.parse(JSON.stringify(s.data)); d.calEvents = defs; d._seededCal = true; return { data: d }; });
   }
 
   runDailyGen(data) {
@@ -87,22 +122,94 @@ class Component extends DCLogic {
   shiftWeek = (delta) => this.setState((s) => ({ weekOffset: (s.weekOffset || 0) + delta }));
   thisWeek = () => this.setState({ weekOffset: 0 });
 
-  toggleTask = (id) => this.mutate((d) => { const t = d.tasks.find((x) => x.id === id); if (t) t.done = !t.done; });
-  removeTask = (id) => this.mutate((d) => { d.tasks = d.tasks.filter((x) => x.id !== id); });
-  addTaskToday = (title) => this.mutate((d) => { d.tasks.push({ id: 'u' + Date.now(), title, type: 'One-off', tag: 'Life', done: false, doDate: this.todayISO(), whatToDo: '', archived: false }); });
-  addOneOff = (title) => this.mutate((d) => { d.tasks.push({ id: 'u' + Date.now(), title, type: 'One-off', tag: 'Life', done: false, doDate: this.tomorrowISO(), whatToDo: '', archived: false }); });
-  addRoutine = (name) => this.mutate((d) => { d.routines.push({ id: 'r' + Date.now(), name, active: true, order: d.routines.length + 1, whatToDo: '' }); });
-  toggleRoutine = (id) => this.mutate((d) => { const r = d.routines.find((x) => x.id === id); if (r) r.active = !r.active; });
-  removeRoutine = (id) => this.mutate((d) => { d.routines = d.routines.filter((x) => x.id !== id); });
+  toggleTask = (id) => {
+    const t = this.state.data.tasks.find((x) => x.id === id); if (!t) return;
+    const done = !t.done;
+    this.mutate((d) => { const x = d.tasks.find((y) => y.id === id); if (x) x.done = done; });
+    const DB = this.db(); if (DB) DB.setTaskDone(id, done);
+  };
+  removeTask = (id) => { this.mutate((d) => { d.tasks = d.tasks.filter((x) => x.id !== id); }); const DB = this.db(); if (DB) DB.deleteTask(id); };
+  addTaskToday = (title) => {
+    const row = { id: this.newId(), title, type: 'One-off', tag: 'Life', done: false, doDate: this.todayISO(), whatToDo: '', archived: false };
+    this.mutate((d) => { d.tasks.push(row); }); const DB = this.db(); if (DB) DB.insertTask(row);
+  };
+  addOneOff = (title) => {
+    const row = { id: this.newId(), title, type: 'One-off', tag: 'Life', done: false, doDate: this.tomorrowISO(), whatToDo: '', archived: false };
+    this.mutate((d) => { d.tasks.push(row); }); const DB = this.db(); if (DB) DB.insertTask(row);
+  };
+  addRoutine = (name) => {
+    const row = { id: this.newId(), name, active: true, order: this.state.data.routines.length + 1, whatToDo: '' };
+    this.mutate((d) => { d.routines.push(row); }); const DB = this.db(); if (DB) DB.insertRoutine(row);
+  };
+  toggleRoutine = (id) => {
+    const r = this.state.data.routines.find((x) => x.id === id); if (!r) return;
+    const active = !r.active;
+    this.mutate((d) => { const x = d.routines.find((y) => y.id === id); if (x) x.active = active; });
+    const DB = this.db(); if (DB) DB.setRoutineActive(id, active);
+  };
+  removeRoutine = (id) => { this.mutate((d) => { d.routines = d.routines.filter((x) => x.id !== id); }); const DB = this.db(); if (DB) DB.deleteRoutine(id); };
 
-  addApp = (company, role) => this.mutate((d) => { d.apps.push({ id: 'a' + Date.now(), company, role: role || '', status: 'Wishlist' }); });
-  removeApp = (id) => this.mutate((d) => { d.apps = d.apps.filter((x) => x.id !== id); });
-  cycleApp = (id) => this.mutate((d) => { const order = ['Wishlist', 'Applied', 'OA', 'Phone Screen', 'Onsite', 'Offer', 'Rejected']; const a = d.apps.find((x) => x.id === id); if (a) a.status = order[(order.indexOf(a.status) + 1) % order.length]; });
+  addApp = (company, role) => {
+    const row = { id: this.newId(), company, role: role || '', status: 'Wishlist', link: '', location: '', appliedOn: '', notes: '', sortOrder: this.state.data.apps.length };
+    this.mutate((d) => { d.apps.push(row); }); const DB = this.db(); if (DB) DB.insertApp(row);
+  };
+  removeApp = (id) => { this.mutate((d) => { d.apps = d.apps.filter((x) => x.id !== id); }); const DB = this.db(); if (DB) DB.deleteApp(id); };
+  cycleApp = (id) => {
+    const order = ['Wishlist', 'Applied', 'OA', 'Phone Screen', 'Onsite', 'Offer', 'Rejected'];
+    const a = this.state.data.apps.find((x) => x.id === id); if (!a) return;
+    const status = order[(order.indexOf(a.status) + 1) % order.length];
+    this.mutate((d) => { const x = d.apps.find((y) => y.id === id); if (x) x.status = status; });
+    const DB = this.db(); if (DB) DB.setAppStatus(id, status);
+  };
+  // applications grid: edit a cell locally; persist the whole grid via batch upsert
+  editApp = (id, field, value) => { this.mutate((d) => { const a = d.apps.find((x) => x.id === id); if (a) a[field] = value; }); };
+  saveApps = () => { const DB = this.db(); if (DB) DB.upsertApps(this.state.data.apps); };
+  importApps = (text) => {
+    const rows = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
+      const c = line.split(/\t|,/).map((s) => s.trim());
+      return { id: this.newId(), company: c[0] || '', role: c[1] || '', status: c[2] || 'Wishlist',
+               link: c[3] || '', location: c[4] || '', appliedOn: '', notes: c[5] || '', sortOrder: 0 };
+    }).filter((r) => r.company);
+    if (!rows.length) return;
+    this.mutate((d) => { rows.forEach((r, i) => { r.sortOrder = d.apps.length + i; d.apps.push(r); }); });
+    const DB = this.db(); if (DB) DB.upsertApps(this.state.data.apps);
+  };
+
+  // ---------- prep: book chapters ----------
+  addChapter = (bookId, title) => {
+    const chs = (this.state.data.chapters || []).filter((c) => c.bookId === bookId);
+    const row = { id: this.newId(), bookId, number: chs.length + 1, title, status: 'todo', sortOrder: chs.length + 1 };
+    this.mutate((d) => { (d.chapters = d.chapters || []).push(row); }); const DB = this.db(); if (DB) DB.insertChapter(row);
+  };
+  cycleChapter = (id) => {
+    const order = ['todo', 'reading', 'done'];
+    const c = (this.state.data.chapters || []).find((x) => x.id === id); if (!c) return;
+    const status = order[(order.indexOf(c.status) + 1) % order.length];
+    this.mutate((d) => { const x = d.chapters.find((y) => y.id === id); if (x) x.status = status; });
+    const DB = this.db(); if (DB) DB.setChapterStatus(id, status);
+  };
+  removeChapter = (id) => { this.mutate((d) => { d.chapters = (d.chapters || []).filter((x) => x.id !== id); }); const DB = this.db(); if (DB) DB.deleteChapter(id); };
+
+  // ---------- calendar events ----------
+  addEvent = (title, date, startMin, endMin) => {
+    const row = { id: this.newId(), title, date, startMin, endMin, color: 'oklch(0.6 0.1 200)', recurs: null, source: 'user' };
+    this.mutate((d) => { (d.calEvents = d.calEvents || []).push(row); }); const DB = this.db(); if (DB) DB.insertEvent(row);
+  };
+  removeEventOccurrence = (id, date, recurring) => {
+    const DB = this.db();
+    if (recurring) {
+      const ex = { id: this.newId(), eventId: id, date };
+      this.mutate((d) => { (d.calExceptions = d.calExceptions || []).push({ eventId: id, date }); });
+      if (DB) DB.addException(ex);
+    } else {
+      this.mutate((d) => { d.calEvents = (d.calEvents || []).filter((x) => x.id !== id); });
+      if (DB) DB.deleteEvent(id);
+    }
+  };
 
   addSolve = (name, difficulty, outcome, note) => this.mutate((d) => { d.solves.push({ id: 's' + Date.now(), name: name || 'Untitled', difficulty, date: this.todayISO(), outcome: outcome || 'solved', note: note || '' }); });
   removeSolve = (id) => this.mutate((d) => { d.solves = d.solves.filter((x) => x.id !== id); });
   setSolveNote = (id, text) => this.mutate((d) => { const s = d.solves.find((x) => x.id === id); if (s) s.note = text; });
-  setBook = (id, delta) => this.mutate((d) => { const b = d.books.find((x) => x.id === id); if (b) b.pct = Math.max(0, Math.min(100, b.pct + delta)); });
   cycleOod = (id) => this.mutate((d) => { const order = ['Not Started', 'In Progress', 'Done']; const p = d.ood.find((x) => x.id === id); if (p) p.status = order[(order.indexOf(p.status) + 1) % order.length]; });
 
   addGoal = (title) => this.mutate((d) => { d.goals.push({ id: 'g' + Date.now(), title, pct: 0 }); });
@@ -203,15 +310,29 @@ class Component extends DCLogic {
     const wkOff = this.state.weekOffset || 0;
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + wkOff * 7);
     const tasksByIso = {}; d.tasks.filter((t) => !t.archived).forEach((t) => { (tasksByIso[t.doDate] = tasksByIso[t.doDate] || []).push(t); });
-    const weekDays = [], dayColumns = [];
+    const calEvents = d.calEvents || [];
+    const calEx = d.calExceptions || [];
+    const excepted = (id, ciso) => calEx.some((x) => x.eventId === id && x.date === ciso);
+    const appliesOn = (ev, dow, ciso) => {
+      if (ev.recurs === 'weekly') return (ev.weekdays || []).includes(dow) && !excepted(ev.id, ciso) && (!ev.recurUntil || ciso <= ev.recurUntil);
+      return ev.date === ciso && !excepted(ev.id, ciso);
+    };
+    const weekDays = [], dayColumns = [], calDays = [];
     for (let i = 0; i < 7; i++) {
       const cd = new Date(weekStart); cd.setDate(weekStart.getDate() + i);
-      const ciso = this.iso(cd); const isTod = ciso === today;
-      weekDays.push({ dow: dows[cd.getDay()], num: cd.getDate(), numColor: isTod ? '#fff' : 'oklch(0.34 0.05 158)', numBg: isTod ? 'oklch(0.6 0.14 25)' : 'transparent' });
-      const events = this.templateFor(cd.getDay()).map((ev) => ({ title: ev.title, color: ev.color, top: `${((ev.start - HSTART * 60) / 60) * ROW}px`, height: `${Math.max(16, ((ev.end - ev.start) / 60) * ROW - 2)}px`, timeLabel: this.minLabel(ev.start) }));
+      const ciso = this.iso(cd); const isTod = ciso === today; const dow = cd.getDay();
+      weekDays.push({ dow: dows[dow], num: cd.getDate(), numColor: isTod ? '#fff' : 'oklch(0.34 0.05 158)', numBg: isTod ? 'oklch(0.6 0.14 25)' : 'transparent' });
+      calDays.push({ iso: ciso, label: `${dows[dow]} ${cd.getDate()}` });
+      const events = calEvents.filter((ev) => ev.startMin != null && appliesOn(ev, dow, ciso)).map((ev) => ({
+        title: ev.title, color: ev.color || 'oklch(0.6 0.1 200)',
+        top: `${((ev.startMin - HSTART * 60) / 60) * ROW}px`,
+        height: `${Math.max(16, ((ev.endMin - ev.startMin) / 60) * ROW - 2)}px`,
+        timeLabel: this.minLabel(ev.startMin),
+        remove: () => this.removeEventOccurrence(ev.id, ciso, ev.recurs === 'weekly'),
+      }));
       const allday = [];
-      (tasksByIso[ciso] || []).forEach((t) => allday.push({ text: t.title, bg: t.type === 'Daily' ? 'oklch(0.9 0.05 165)' : 'oklch(0.9 0.05 205)', color: t.type === 'Daily' ? 'oklch(0.32 0.07 160)' : 'oklch(0.32 0.07 210)' }));
-      ((d.events && d.events[ciso]) || []).forEach((e) => allday.push({ text: e.text, bg: 'oklch(0.9 0.05 150)', color: 'oklch(0.32 0.06 150)' }));
+      (tasksByIso[ciso] || []).forEach((t) => allday.push({ text: t.title, bg: t.type === 'Daily' ? 'oklch(0.9 0.05 165)' : 'oklch(0.9 0.05 205)', color: t.type === 'Daily' ? 'oklch(0.32 0.07 160)' : 'oklch(0.32 0.07 210)', canRemove: false, remove: () => {} }));
+      calEvents.filter((ev) => ev.startMin == null && appliesOn(ev, dow, ciso)).forEach((ev) => allday.push({ text: ev.title, bg: 'oklch(0.9 0.05 150)', color: 'oklch(0.32 0.06 150)', canRemove: true, remove: () => this.removeEventOccurrence(ev.id, ciso, ev.recurs === 'weekly') }));
       dayColumns.push({ iso: ciso, events, allday, todayTint: isTod ? 'oklch(0.97 0.02 150)' : 'transparent' });
     }
     const midWeek = new Date(weekStart); midWeek.setDate(weekStart.getDate() + 3);
@@ -220,6 +341,16 @@ class Component extends DCLogic {
     const prevWeek = () => this.shiftWeek(-1);
     const nextWeek = () => this.shiftWeek(1);
     const thisWeek = this.thisWeek;
+    const onAddEvent = () => {
+      const t = document.querySelector('[data-ev-title]'), day = document.querySelector('[data-ev-day]');
+      const s = document.querySelector('[data-ev-start]'), e2 = document.querySelector('[data-ev-end]');
+      if (!t || !t.value.trim()) return;
+      const toMin = (v) => { if (!v) return null; const p = v.split(':'); return (+p[0]) * 60 + (+(p[1] || 0)); };
+      let sm = toMin(s && s.value), em = toMin(e2 && e2.value);
+      if (sm == null) sm = 540; if (em == null || em <= sm) em = sm + 60;
+      this.addEvent(t.value.trim(), (day && day.value) || today, sm, em);
+      if (t) t.value = '';
+    };
 
     // ---- leetcode ----
     const cE = 'oklch(0.8 0.13 165)', cM = 'oklch(0.72 0.12 205)', cH = 'oklch(0.5 0.11 158)';
@@ -249,7 +380,23 @@ class Component extends DCLogic {
     const noSolves = solvedList.length === 0;
     const noFailed = failedList.length === 0;
 
-    const sysBooks = d.books.map((b) => ({ ...b, pctLabel: `${b.pct}%`, inc: () => this.setBook(b.id, 10), dec: () => this.setBook(b.id, -10) }));
+    // ---- prep: books with chapter-derived progress ----
+    const chaptersAll = d.chapters || [];
+    const bookPct = (b) => { const chs = chaptersAll.filter((c) => c.bookId === b.id); const done = chs.filter((c) => c.status === 'done').length; return chs.length ? Math.round((done / chs.length) * 100) : 0; };
+    const chapColor = { todo: 'oklch(0.72 0.02 158)', reading: 'oklch(0.72 0.13 205)', done: 'oklch(0.62 0.14 150)' };
+    const chapBg = { todo: 'oklch(0.975 0.01 150)', reading: 'oklch(0.95 0.04 205)', done: 'oklch(0.94 0.05 150)' };
+    const chapShort = { todo: 'todo', reading: 'reading', done: 'done' };
+    const sysBooks = d.books.map((b) => {
+      const chs = chaptersAll.filter((c) => c.bookId === b.id).sort((a, z) => (a.number || 0) - (z.number || 0) || (a.sortOrder || 0) - (z.sortOrder || 0));
+      const pct = bookPct(b);
+      return {
+        ...b, pct, pctLabel: `${pct}%`,
+        chapCount: chs.length, doneLabel: `${chs.filter((c) => c.status === 'done').length}/${chs.length}`,
+        noChapters: chs.length === 0,
+        chapters: chs.map((c) => ({ id: c.id, title: c.title, numLabel: c.number ? `${c.number}.` : '•', statusShort: chapShort[c.status], statusColor: chapColor[c.status], bg: chapBg[c.status], cycle: () => this.cycleChapter(c.id), remove: () => this.removeChapter(c.id) })),
+        onAddChapter: (e) => { if (e.key === 'Enter' && e.target.value.trim()) { this.addChapter(b.id, e.target.value.trim()); e.target.value = ''; } },
+      };
+    });
 
     const oodStatusColor = { 'Not Started': 'oklch(0.72 0.02 158)', 'In Progress': 'oklch(0.72 0.13 205)', 'Done': 'oklch(0.62 0.14 150)' };
     const oodStatusShort = { 'Not Started': 'todo', 'In Progress': 'wip', 'Done': 'done' };
@@ -269,15 +416,25 @@ class Component extends DCLogic {
       { name: 'Offer', full: 'Offer', color: 'oklch(0.62 0.15 145)' },
     ];
     const colorFor = (status) => (stageDefs.find((s) => s.full === status) || { color: 'oklch(0.7 0.08 40)' }).color;
-    const apps = d.apps.map((a) => ({ ...a, color: colorFor(a.status), cycle: () => this.cycleApp(a.id), remove: () => this.removeApp(a.id) }));
-    const noApps = apps.length === 0;
+    const appRows = d.apps.map((a) => ({
+      ...a, color: colorFor(a.status), cycle: () => this.cycleApp(a.id), remove: () => this.removeApp(a.id),
+      onCompany: (e) => this.editApp(a.id, 'company', e.target.value),
+      onRole: (e) => this.editApp(a.id, 'role', e.target.value),
+      onLink: (e) => this.editApp(a.id, 'link', e.target.value),
+      onLocation: (e) => this.editApp(a.id, 'location', e.target.value),
+      onApplied: (e) => this.editApp(a.id, 'appliedOn', e.target.value),
+      onNotes: (e) => this.editApp(a.id, 'notes', e.target.value),
+    }));
+    const noApps = appRows.length === 0;
+    const saveApps = () => this.saveApps();
+    const onImportApps = () => { const ta = document.querySelector('[data-app-import]'); if (ta && ta.value.trim()) { this.importApps(ta.value); ta.value = ''; } };
     const stageCounts = stageDefs.map((s) => d.apps.filter((a) => a.status === s.full).length);
     const maxStage = Math.max(1, ...stageCounts);
     const pipeline = stageDefs.map((s, i) => ({ name: s.name, color: s.color, count: stageCounts[i], barH: `${Math.round((stageCounts[i] / maxStage) * 100)}%` }));
     const appsTotal = d.apps.length;
     const appsActive = d.apps.filter((a) => ['OA', 'Phone Screen', 'Onsite'].includes(a.status)).length;
     const appsOffers = d.apps.filter((a) => a.status === 'Offer').length;
-    const booksAvg = d.books.length ? Math.round(d.books.reduce((s, b) => s + b.pct, 0) / d.books.length) : 0;
+    const booksAvg = d.books.length ? Math.round(d.books.reduce((s, b) => s + bookPct(b), 0) / d.books.length) : 0;
     const booksAvgLabel = `${booksAvg}%`;
     const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6);
     const weekAgoIso = this.iso(weekAgo);
@@ -319,10 +476,10 @@ class Component extends DCLogic {
     return {
       ...base,
       todayTasks, doneLabel, noTasks, todayDailyTasks, todayOneoffTasks, noDailyToday, noOneoffToday, dailyDoneLabel, oneoffDoneLabel, oneOffs, noOneOffs, archive, noArchive, archiveCount,
-      gridHeightPx, hourLines, weekDays, dayColumns, calMonthName, calYear, prevWeek, nextWeek, thisWeek,
+      gridHeightPx, hourLines, weekDays, dayColumns, calMonthName, calYear, prevWeek, nextWeek, thisWeek, calDays, onAddEvent,
       donutBg, leetTotal, leetLegend, leetTodayLabel, leetSolvedBtns, leetFailedBtns, onLeetKey, onLeetCancel, solvedList, noSolves, failedList, noFailed, failedCount, successLabel,
       sysBooks, ood, oodPctLabel, oodFrac,
-      apps, noApps, pipeline, routines,
+      appRows, noApps, pipeline, routines, saveApps, onImportApps,
       appsTotal, appsActive, appsOffers, booksAvgLabel, leetWeekLabel,
       goals, noGoals, onAddGoal,
       weightUnit, weightLatest, weightDelta, weightDeltaColor, weightLine, weightHasLine, hasWeight, onAddWeight,
