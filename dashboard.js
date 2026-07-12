@@ -62,6 +62,17 @@ class Component extends DCLogic {
 
   state = { data: null, view: 'home', weekOffset: 0 };
 
+  // One-time normalization: the app is lb-only now. Any state still carrying kg
+  // (old localStorage cache or a stale blob) gets its values converted so a stale
+  // tab can never write kg back over the database.
+  normalizeUnits(data) {
+    if (data.weightUnit === 'kg') {
+      data.weights = (data.weights || []).map((w) => ({ ...w, v: +((+w.v) * 2.20462).toFixed(1) }));
+      data.weightUnit = 'lb';
+    }
+    return data;
+  }
+
   async componentDidMount() {
     let data = this.load();                       // blob: free-form bits + backup
     const DB = this.db();
@@ -73,6 +84,7 @@ class Component extends DCLogic {
         const t = await DB.loadTables();          // tables are the source of truth for the normalized entities
         data = { ...data, routines: t.routines, tasks: t.tasks, apps: t.apps,
                  books: t.books, chapters: t.chapters, calEvents: t.calEvents, calExceptions: t.calExceptions };
+        data = this.normalizeUnits(data);
         this.setState({ data }, () => this.save());
         await this.ensureFirstRun(data);          // first run: seed default books + habit into empty tables
         await this.ensureSeedCalendar(data);      // first run: seed the weekday routine as recurring events
@@ -81,6 +93,7 @@ class Component extends DCLogic {
     }
     data = this.runDailyGen(data);                // offline fallback
     data.chapters = data.chapters || []; data.calEvents = data.calEvents || []; data.calExceptions = data.calExceptions || [];
+    data = this.normalizeUnits(data);
     this.setState({ data }, () => this.save());
   }
 
@@ -526,7 +539,7 @@ class Component extends DCLogic {
     // ---- goals / weight / quotes / currently ----
     const goals = d.goals.map((g) => ({ ...g, pctLabel: `${g.pct}%`, inc: () => this.setGoal(g.id, 10), dec: () => this.setGoal(g.id, -10), remove: () => this.removeGoal(g.id) }));
     const noGoals = goals.length === 0;
-    const weightUnit = d.weightUnit || 'kg';
+    const weightUnit = d.weightUnit || 'lb';
     const wsorted = [...d.weights].sort((a, b) => (a.date < b.date ? -1 : 1));
     const hasWeight = wsorted.length > 0;
     const weightLatest = hasWeight ? wsorted[wsorted.length - 1].v : '—';
