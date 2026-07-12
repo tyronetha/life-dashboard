@@ -105,6 +105,19 @@
       return SB.from('books').insert(rows).then(logErr('insertBooksBulk'));
     },
     insertChapter(c)     { return SB.from('book_chapters').insert({ id: c.id, book_id: c.bookId, user_id: this.user.id, number: c.number, title: c.title, status: c.status || 'todo', sort_order: c.sortOrder || 0 }).then(logErr('insertChapter')); },
+    insertChaptersBulk(list) {
+      var uid = this.user.id;
+      var rows = list.map(function (c) { return { id: c.id, book_id: c.bookId, user_id: uid, number: c.number, title: c.title, status: c.status || 'todo', sort_order: c.sortOrder || 0 }; });
+      return SB.from('book_chapters').insert(rows).then(logErr('insertChaptersBulk'));
+    },
+    deleteChaptersAbove(bookId, n) { return SB.from('book_chapters').delete().eq('book_id', bookId).gt('number', n).then(logErr('deleteChaptersAbove')); },
+    // mark chapters 1..k done and the rest todo (slider drag)
+    setChaptersRead(bookId, k) {
+      return Promise.all([
+        SB.from('book_chapters').update({ status: 'done' }).eq('book_id', bookId).lte('number', k).then(logErr('setChaptersRead-done')),
+        SB.from('book_chapters').update({ status: 'todo' }).eq('book_id', bookId).gt('number', k).then(logErr('setChaptersRead-todo')),
+      ]);
+    },
     setChapterStatus(id, status) { return SB.from('book_chapters').update({ status: status }).eq('id', id).then(logErr('setChapterStatus')); },
     deleteChapter(id)    { return SB.from('book_chapters').delete().eq('id', id).then(logErr('deleteChapter')); },
 

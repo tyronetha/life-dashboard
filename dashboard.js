@@ -243,6 +243,28 @@ class Component extends DCLogic {
     const DB = this.db(); if (DB) DB.setChapterStatus(id, status);
   };
   removeChapter = (id) => { this.mutate((d) => { d.chapters = (d.chapters || []).filter((x) => x.id !== id); }); const DB = this.db(); if (DB) DB.deleteChapter(id); };
+  // Set how many chapters a book has: auto-creates/removes numbered chapter rows.
+  setBookTotal = (bookId, total) => {
+    const cur = (this.state.data.chapters || []).filter((c) => c.bookId === bookId);
+    const maxN = cur.length;
+    const DB = this.db();
+    if (total > maxN) {
+      const rows = [];
+      for (let n = maxN + 1; n <= total; n++) rows.push({ id: this.newId(), bookId, number: n, title: 'Chapter ' + n, status: 'todo', sortOrder: n });
+      this.mutate((d) => { d.chapters = (d.chapters || []).concat(rows); });
+      if (DB) DB.insertChaptersBulk(rows);
+    } else if (total < maxN) {
+      this.mutate((d) => { d.chapters = d.chapters.filter((c) => !(c.bookId === bookId && c.number > total)); });
+      if (DB) DB.deleteChaptersAbove(bookId, total);
+    }
+  };
+  // Slider drag: chapters 1..k read. Local state live, DB persisted debounced.
+  setBookRead = (bookId, k) => {
+    this.mutate((d) => { d.chapters.forEach((c) => { if (c.bookId === bookId) c.status = (c.number <= k) ? 'done' : 'todo'; }); });
+    this._readT = this._readT || {};
+    clearTimeout(this._readT[bookId]);
+    this._readT[bookId] = setTimeout(() => { const DB = this.db(); if (DB) DB.setChaptersRead(bookId, k); }, 700);
+  };
 
   // ---------- calendar events ----------
   addEvent = (title, date, startMin, endMin) => {
@@ -437,18 +459,18 @@ class Component extends DCLogic {
     // ---- prep: books with chapter-derived progress ----
     const chaptersAll = d.chapters || [];
     const bookPct = (b) => { const chs = chaptersAll.filter((c) => c.bookId === b.id); const done = chs.filter((c) => c.status === 'done').length; return chs.length ? Math.round((done / chs.length) * 100) : 0; };
-    const chapColor = { todo: 'oklch(0.72 0.02 158)', reading: 'oklch(0.72 0.13 205)', done: 'oklch(0.62 0.14 150)' };
-    const chapBg = { todo: 'oklch(0.975 0.01 150)', reading: 'oklch(0.95 0.04 205)', done: 'oklch(0.94 0.05 150)' };
-    const chapShort = { todo: 'todo', reading: 'reading', done: 'done' };
     const sysBooks = d.books.map((b) => {
-      const chs = chaptersAll.filter((c) => c.bookId === b.id).sort((a, z) => (a.number || 0) - (z.number || 0) || (a.sortOrder || 0) - (z.sortOrder || 0));
+      const chs = chaptersAll.filter((c) => c.bookId === b.id);
+      const total = chs.length;
+      const read = chs.filter((c) => c.status === 'done').length;
       const pct = bookPct(b);
       return {
         ...b, pct, pctLabel: `${pct}%`,
-        chapCount: chs.length, doneLabel: `${chs.filter((c) => c.status === 'done').length}/${chs.length}`,
-        noChapters: chs.length === 0,
-        chapters: chs.map((c) => ({ id: c.id, title: c.title, numLabel: c.number ? `${c.number}.` : '•', statusShort: chapShort[c.status], statusColor: chapColor[c.status], bg: chapBg[c.status], cycle: () => this.cycleChapter(c.id), remove: () => this.removeChapter(c.id) })),
-        onAddChapter: (e) => { if (e.key === 'Enter' && e.target.value.trim()) { this.addChapter(b.id, e.target.value.trim()); e.target.value = ''; } },
+        chapCount: total, doneLabel: `${read}/${total}`,
+        readCount: read, readLabel: total ? `${read} / ${total} read` : 'set chapter count →',
+        noChapters: total === 0,
+        onTotal: (e) => { const n = parseInt(e.target.value, 10); if (!isNaN(n) && n >= 0 && n <= 300) this.setBookTotal(b.id, n); },
+        onRead: (e) => { const k = parseInt(e.target.value, 10); if (!isNaN(k)) this.setBookRead(b.id, k); },
       };
     });
 
