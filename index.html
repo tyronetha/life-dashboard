@@ -176,10 +176,24 @@
     <div class="app-main" style="padding:28px; display:flex; flex-direction:column; gap:20px;">
 
       <!-- header -->
-      <div>
-        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.18em; color:oklch(0.52 0.08 70); text-transform:uppercase;">{{ todayLabel }}</div>
-        <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:34px; color:oklch(0.3 0.05 158); margin-top:2px;">{{ greeting }}, {{ name }}.</div>
-        <div style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:17px; color:oklch(0.52 0.05 70);">personality dictates destiny.</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px;">
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.18em; color:oklch(0.52 0.08 70); text-transform:uppercase;">{{ todayLabel }}</div>
+          <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:34px; color:oklch(0.3 0.05 158); margin-top:2px;">{{ greeting }}, {{ name }}.</div>
+          <div style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:17px; color:oklch(0.52 0.05 70);">personality dictates destiny.</div>
+        </div>
+        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:0 0 auto; display:flex; align-items:center; gap:13px; background:oklch(0.99 0.006 150 / 0.55); border:1px solid oklch(0.9 0.03 100); border-radius:16px; padding:10px 16px 10px 12px;">
+            <div style="position:relative; width:46px; height:46px;">
+              <div style="width:46px; height:46px; border-radius:50%; background:{{ homeCounterBg }}; -webkit-mask:radial-gradient(circle, transparent 56%, #000 57%); mask:radial-gradient(circle, transparent 56%, #000 57%);"></div>
+              <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; color:oklch(0.4 0.08 158);">{{ donePctLabel }}</div>
+            </div>
+            <div>
+              <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; line-height:1; color:oklch(0.3 0.05 158);">{{ doneLabel }}</div>
+              <div style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.12em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-top:2px;">done today</div>
+            </div>
+          </div>
+        </sc-if>
       </div>
 
       <!-- ============ HOME ============ -->
@@ -307,24 +321,11 @@
             <span style="font-family:'Space Mono',monospace; font-size:13px; color:oklch(0.56 0.03 158);">{{ calYear }}</span>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-family:'Space Mono',monospace; font-size:10px; letter-spacing:0.02em; color:oklch(0.56 0.05 158); margin-right:2px;">click any slot to add ✦</span>
             <span onClick="{{ thisWeek }}" style="cursor:pointer; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.04em; padding:7px 12px; border-radius:9px; background:oklch(0.94 0.02 152); color:oklch(0.4 0.05 158);">today</span>
             <span onClick="{{ prevWeek }}" style="cursor:pointer; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:oklch(0.94 0.02 152); font-size:18px; color:oklch(0.4 0.05 158);">‹</span>
             <span onClick="{{ nextWeek }}" style="cursor:pointer; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:oklch(0.94 0.02 152); font-size:18px; color:oklch(0.4 0.05 158);">›</span>
           </div>
-        </div>
-
-        <!-- add event -->
-        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; padding:12px; border-radius:12px; background:oklch(0.975 0.01 150); border:1px solid oklch(0.92 0.016 152);">
-          <input data-ev-title type="text" placeholder="new event…" style="flex:1; min-width:150px; padding:9px 12px; border-radius:9px; border:1px solid oklch(0.9 0.02 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none;">
-          <select data-ev-day style="padding:9px 10px; border-radius:9px; border:1px solid oklch(0.9 0.02 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none;">
-            <sc-for list="{{ calDays }}" as="cd" hint-placeholder-count="7">
-              <option value="{{ cd.iso }}">{{ cd.label }}</option>
-            </sc-for>
-          </select>
-          <input data-ev-start type="time" value="09:00" style="padding:9px 10px; border-radius:9px; border:1px solid oklch(0.9 0.02 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none;">
-          <span style="font-family:'Space Mono',monospace; font-size:12px; color:oklch(0.56 0.03 158);">→</span>
-          <input data-ev-end type="time" value="10:00" style="padding:9px 10px; border-radius:9px; border:1px solid oklch(0.9 0.02 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none;">
-          <button onClick="{{ onAddEvent }}" style="cursor:pointer; padding:9px 16px; border-radius:9px; border:none; font-weight:700; font-size:13px; color:oklch(0.2 0.05 160); background:oklch(0.86 0.14 88);">+ Add</button>
         </div>
 
         <!-- day headers -->
@@ -366,12 +367,12 @@
             </div>
             <!-- day columns -->
             <sc-for list="{{ dayColumns }}" as="col" hint-placeholder-count="7">
-              <div style="position:relative; height:{{ gridHeightPx }}; border-left:1px solid oklch(0.94 0.014 152); background:repeating-linear-gradient(oklch(0.99 0.006 150) 0 53px, oklch(0.945 0.014 152) 53px 54px); background-color:{{ col.todayTint }};">
+              <div onClick="{{ col.onGridClick }}" style="position:relative; height:{{ gridHeightPx }}; cursor:pointer; border-left:1px solid oklch(0.94 0.014 152); background:repeating-linear-gradient(oklch(0.99 0.006 150) 0 53px, oklch(0.945 0.014 152) 53px 54px); background-color:{{ col.todayTint }};">
                 <sc-for list="{{ col.events }}" as="ev" hint-placeholder-count="0">
-                  <div style="position:absolute; top:{{ ev.top }}; height:{{ ev.height }}; left:3px; right:3px; border-radius:6px; padding:3px 6px; overflow:hidden; background:{{ ev.color }}; color:#fff; box-shadow:0 1px 2px oklch(0.2 0.05 160 / 0.2);">
-                    <span onClick="{{ ev.remove }}" style="position:absolute; top:1px; right:3px; cursor:pointer; font-size:10px; opacity:0.85; line-height:1;">✕</span>
-                    <div style="font-size:11px; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:12px;">{{ ev.title }}</div>
+                  <div data-cal-ev="1" style="position:absolute; top:{{ ev.top }}; height:{{ ev.height }}; left:3px; right:3px; border-radius:6px; padding:3px 6px; overflow:hidden; background:{{ ev.color }}; color:#fff; box-shadow:0 1px 2px oklch(0.2 0.05 160 / 0.2);">
+                    <div style="font-size:11px; font-weight:600; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:10px;">{{ ev.title }}</div>
                     <div style="font-family:'Space Mono',monospace; font-size:9px; opacity:0.85; white-space:nowrap;">{{ ev.timeLabel }}</div>
+                    <span onClick="{{ ev.remove }}" style="position:absolute; top:1px; right:3px; font-size:10px; line-height:1; cursor:pointer; opacity:0.85; display:{{ ev.rmDisplay }};">✕</span>
                   </div>
                 </sc-for>
               </div>
@@ -379,6 +380,31 @@
           </div>
         </div>
       </div>
+
+      <!-- quick-add event popover -->
+      <sc-if value="{{ calDraftOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ calDraft.cancel }}" style="position:fixed; inset:0; z-index:40;"></div>
+        <div style="position:fixed; left:{{ calDraft.left }}; top:{{ calDraft.top }}; z-index:41; width:246px; background:oklch(0.99 0.006 150); border:1px solid oklch(0.88 0.03 152); border-radius:16px; box-shadow:0 28px 64px -22px oklch(0.15 0.05 160 / 0.7); padding:16px;">
+          <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.52 0.06 158); margin-bottom:9px;">{{ calDraft.whenLabel }}</div>
+          <input type="text" data-cal-title placeholder="event name…" onKeyDown="{{ calDraft.onKey }}" style="width:100%; padding:10px 13px; border-radius:11px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.985 0.006 150); font-size:14px; font-weight:600; outline:none; margin-bottom:13px;">
+          <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-bottom:6px;">duration</div>
+          <div style="display:flex; gap:6px; margin-bottom:13px;">
+            <sc-for list="{{ calDraft.durChips }}" as="c" hint-placeholder-count="4">
+              <span onClick="{{ c.set }}" style="flex:1; text-align:center; cursor:pointer; padding:7px 0; border-radius:9px; font-family:'Space Mono',monospace; font-size:12px; font-weight:700; background:{{ c.bg }}; color:{{ c.color }};">{{ c.label }}</span>
+            </sc-for>
+          </div>
+          <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-bottom:7px;">colour</div>
+          <div style="display:flex; gap:11px; margin-bottom:15px; padding:2px;">
+            <sc-for list="{{ calDraft.colorDots }}" as="c" hint-placeholder-count="5">
+              <span onClick="{{ c.set }}" style="width:20px; height:20px; border-radius:50%; cursor:pointer; background:{{ c.color }}; box-shadow:{{ c.ring }};"></span>
+            </sc-for>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onClick="{{ calDraft.cancel }}" style="flex:0 0 auto; padding:9px 15px; border-radius:10px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.97 0.006 150); color:oklch(0.5 0.04 158); font-size:12.5px; font-weight:600; cursor:pointer;">Cancel</button>
+            <button onClick="{{ calDraft.commit }}" style="flex:1; padding:9px 0; border-radius:10px; border:none; background:oklch(0.55 0.13 160); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer;">Add event</button>
+          </div>
+        </div>
+      </sc-if>
       </sc-if>
 
       <!-- ============ DAILY (routine / habits) ============ -->
@@ -397,7 +423,19 @@
               </div>
             </sc-for>
           </div>
-          <input type="text" placeholder="+ new habit…  (Enter)" onKeyDown="{{ onAddRoutine }}" style="margin-top:14px; width:100%; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+          <div style="display:flex; flex-direction:column; gap:11px; margin-top:15px;">
+            <div style="display:flex; gap:8px;">
+              <input type="text" data-habit-name placeholder="new habit…" onKeyDown="{{ onHabitKey }}" style="flex:2; min-width:0; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+              <input type="text" data-habit-detail placeholder="detail — e.g. 30 min, 5 problems" onKeyDown="{{ onHabitKey }}" style="flex:3; min-width:0; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+              <button onClick="{{ addHabitFromForm }}" style="flex:0 0 auto; padding:0 20px; border-radius:12px; border:none; cursor:pointer; background:oklch(0.55 0.13 160); color:#fff; font-weight:600; font-size:14px;">Add</button>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:7px;">
+              <span style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-right:2px;">quick add</span>
+              <sc-for list="{{ habitSuggestions }}" as="h" hint-placeholder-count="7">
+                <span onClick="{{ h.add }}" style="cursor:pointer; padding:6px 13px; border-radius:999px; background:oklch(0.955 0.02 152); border:1px solid oklch(0.9 0.025 152); font-size:12.5px; font-weight:600; color:oklch(0.38 0.05 158);">+ {{ h.label }}</span>
+              </sc-for>
+            </div>
+          </div>
         </div>
 
         <div style="background:oklch(0.95 0.04 92); border:1px solid oklch(0.87 0.05 100); border-radius:18px; padding:22px;">
@@ -467,58 +505,78 @@
           </div>
           <div style="margin-top:12px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:15px; color:oklch(0.44 0.06 158);">{{ leetTodayLabel }}</div>
           <div style="margin-top:16px;">
-            <input type="text" placeholder="problem name…" data-leet-input style="width:100%; padding:10px 13px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none; margin-bottom:8px;">
-            <input type="text" placeholder="💡 best way to solve… (hash map, two pointers, DP…)" data-leet-note style="width:100%; padding:10px 13px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none; margin-bottom:10px;">
-            <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:oklch(0.5 0.09 160); margin-bottom:6px;">✓ save as solved</div>
-            <div style="display:flex; gap:8px; margin-bottom:12px;">
-              <sc-for list="{{ leetSolvedBtns }}" as="btn" hint-placeholder-count="3">
-                <button onClick="{{ btn.add }}" style="flex:1; cursor:pointer; padding:9px 0; border-radius:10px; border:none; color:#fff; font-size:12px; font-weight:600; background:{{ btn.color }};">{{ btn.label }}</button>
+            <input type="text" placeholder="problem name…" data-leet-input onKeyDown="{{ onLeetKey2 }}" style="width:100%; padding:10px 13px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none; margin-bottom:8px;">
+            <input type="text" placeholder="💡 best way to solve… (hash map, two pointers, DP…)" data-leet-note onKeyDown="{{ onLeetKey2 }}" style="width:100%; padding:10px 13px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:13px; outline:none; margin-bottom:13px;">
+            <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:oklch(0.5 0.05 158); margin-bottom:6px;">difficulty</div>
+            <div style="display:flex; gap:8px; margin-bottom:13px;">
+              <sc-for list="{{ leetDiffPicker }}" as="p" hint-placeholder-count="3">
+                <span onClick="{{ p.set }}" style="flex:1; text-align:center; cursor:pointer; padding:9px 0; border-radius:10px; font-size:12.5px; font-weight:700; background:{{ p.bg }}; color:{{ p.textColor }};">{{ p.label }}</span>
               </sc-for>
             </div>
-            <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:oklch(0.55 0.11 35); margin-bottom:6px;">✕ save as failed / to review</div>
-            <div style="display:flex; gap:8px; margin-bottom:12px;">
-              <sc-for list="{{ leetFailedBtns }}" as="btn" hint-placeholder-count="3">
-                <button onClick="{{ btn.add }}" style="flex:1; cursor:pointer; padding:9px 0; border-radius:10px; border:1px solid oklch(0.84 0.08 40); background:oklch(0.97 0.02 40); color:oklch(0.5 0.12 35); font-size:12px; font-weight:600;">{{ btn.label }}</button>
+            <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:oklch(0.5 0.05 158); margin-bottom:6px;">outcome</div>
+            <div style="display:flex; gap:8px; margin-bottom:15px;">
+              <sc-for list="{{ leetOutcomePicker }}" as="p" hint-placeholder-count="2">
+                <span onClick="{{ p.set }}" style="flex:1; text-align:center; cursor:pointer; padding:9px 0; border-radius:10px; font-size:12.5px; font-weight:700; background:{{ p.bg }}; color:{{ p.textColor }};">{{ p.label }}</span>
               </sc-for>
             </div>
-            <button onClick="{{ onLeetCancel }}" style="width:100%; cursor:pointer; padding:9px 0; border-radius:10px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.97 0.006 150); color:oklch(0.5 0.04 158); font-size:12px; font-weight:600;">Cancel / clear</button>
+            <button onClick="{{ addLeetFromForm }}" style="width:100%; cursor:pointer; padding:11px 0; border-radius:11px; border:none; color:#fff; font-size:13px; font-weight:700; background:{{ leetAddBtnBg }};">{{ leetAddBtnLabel }}</button>
           </div>
         </div>
         <div style="background:oklch(0.99 0.006 150); border:1px solid oklch(0.9 0.02 152); border-radius:18px; padding:22px;">
           <p style="font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:18px; letter-spacing:0.16em; color:oklch(0.4 0.1 158); margin:0 0 12px; white-space:nowrap;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px; margin-right:7px;"><path d="M4 20c0-8.5 6-14.5 16.5-16.5C18.5 12 12.5 18 4 20Z"/><path d="M4.5 19.5C8.5 14.5 12.5 11.5 17.5 9.5"/></svg>s o l v e d</p>
-          <div class="lc-scroll" style="display:flex; flex-direction:column; gap:7px; max-height:230px; overflow-y:auto; padding-right:4px;">
-            <sc-for list="{{ solvedList }}" as="s" hint-placeholder-count="1">
-              <div style="display:flex; flex-direction:column; gap:7px; padding:10px 13px; border-radius:11px; background:oklch(0.975 0.01 150); border:1px solid oklch(0.92 0.016 152);">
-                <div style="display:flex; align-items:center; gap:11px;">
-                  <span style="width:9px; height:9px; border-radius:3px; background:{{ s.color }};"></span>
-                  <span style="flex:1; font-weight:600; font-size:14px; color:oklch(0.34 0.04 158);">{{ s.name }}</span>
-                  <span style="font-family:'Space Mono',monospace; font-size:10px; color:oklch(0.56 0.03 158);">{{ s.difficulty }}</span>
-                  <span style="font-family:'Space Mono',monospace; font-size:10px; color:oklch(0.62 0.03 158);">{{ s.dateLabel }}</span>
-                  <span onClick="{{ s.remove }}" style="cursor:pointer; color:oklch(0.66 0.03 158); font-size:13px;">✕</span>
+          <div class="lc-scroll" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:340px; overflow-y:auto; padding:2px 4px 2px 2px;">
+            <sc-for list="{{ solvedCards }}" as="c" hint-placeholder-count="2">
+              <div style="perspective:1000px; height:114px;">
+                <div style="position:relative; width:100%; height:100%;">
+                  <div onClick="{{ c.toggle }}" style="position:absolute; inset:0; opacity:{{ c.frontOpacity }}; transform:{{ c.frontTransform }}; pointer-events:{{ c.frontPE }}; transition:opacity 0.3s ease, transform 0.4s ease; cursor:pointer; border-radius:14px; padding:12px 14px; background:{{ c.frontBg }}; border:1px solid {{ c.frontBorder }}; display:flex; flex-direction:column;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="width:9px; height:9px; border-radius:3px; background:{{ c.badgeColor }};"></span>
+                      <span style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.04em; text-transform:uppercase; color:oklch(0.56 0.03 158);">{{ c.difficulty }}</span>
+                      <span style="margin-left:auto; font-family:'Space Mono',monospace; font-size:9px; color:oklch(0.62 0.03 158);">{{ c.dateLabel }}</span>
+                    </div>
+                    <div style="flex:1; display:flex; align-items:center; font-family:'Cormorant Garamond',serif; font-weight:600; font-size:19px; line-height:1.15; color:oklch(0.32 0.04 158); overflow:hidden;">{{ c.name }}</div>
+                    <div style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.04em; color:{{ c.accent }};">↻ {{ c.hint }}</div>
+                  </div>
+                  <div onClick="{{ c.toggle }}" style="position:absolute; inset:0; opacity:{{ c.backOpacity }}; transform:{{ c.backTransform }}; pointer-events:{{ c.backPE }}; transition:opacity 0.3s ease, transform 0.4s ease; cursor:pointer; border-radius:14px; padding:11px 13px; background:oklch(0.99 0.006 150); border:1.5px solid {{ c.accent }}; display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.08em; text-transform:uppercase; color:{{ c.accent }};">approach</span>
+                      <span onClick="{{ c.remove }}" style="margin-left:auto; cursor:pointer; color:oklch(0.66 0.03 158); font-size:12px;">✕</span>
+                    </div>
+                    <textarea onClick="{{ c.stop }}" value="{{ c.note }}" onInput="{{ c.onNote }}" placeholder="{{ c.notePlaceholder }}" style="flex:1; width:100%; resize:none; border:none; outline:none; background:transparent; font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:oklch(0.36 0.04 158); line-height:1.4;"></textarea>
+                  </div>
                 </div>
-                <input type="text" value="{{ s.note }}" onInput="{{ s.onNote }}" placeholder="💡 best way to solve… (e.g. hash map, two pointers)" style="width:100%; padding:7px 10px; border-radius:8px; border:1px solid oklch(0.9 0.02 152); background:oklch(0.99 0.006 150); font-size:12px; color:oklch(0.4 0.04 158); outline:none;">
               </div>
             </sc-for>
             <sc-if value="{{ noSolves }}" hint-placeholder-val="{{ false }}">
-              <div style="text-align:center; padding:16px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:15px; color:oklch(0.58 0.03 158);">log your first solve on the left</div>
+              <div style="grid-column:1 / -1; text-align:center; padding:16px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:15px; color:oklch(0.58 0.03 158);">log your first solve on the left</div>
             </sc-if>
           </div>
           <p style="font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:18px; letter-spacing:0.16em; color:oklch(0.52 0.1 35); margin:18px 0 12px; white-space:nowrap;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px; margin-right:7px;"><path d="M4 20c0-8.5 6-14.5 16.5-16.5C18.5 12 12.5 18 4 20Z"/><path d="M4.5 19.5C8.5 14.5 12.5 11.5 17.5 9.5"/></svg>f a i l e d  ·  r e v i e w</p>
-          <div class="lc-scroll" style="display:flex; flex-direction:column; gap:7px; max-height:200px; overflow-y:auto; padding-right:4px;">
-            <sc-for list="{{ failedList }}" as="s" hint-placeholder-count="1">
-              <div style="display:flex; flex-direction:column; gap:7px; padding:10px 13px; border-radius:11px; background:oklch(0.98 0.02 40); border:1px solid oklch(0.9 0.04 40);">
-                <div style="display:flex; align-items:center; gap:11px;">
-                  <span style="width:9px; height:9px; border-radius:3px; background:{{ s.color }};"></span>
-                  <span style="flex:1; font-weight:600; font-size:14px; color:oklch(0.4 0.06 35);">{{ s.name }}</span>
-                  <span style="font-family:'Space Mono',monospace; font-size:10px; color:oklch(0.56 0.03 158);">{{ s.difficulty }}</span>
-                  <span style="font-family:'Space Mono',monospace; font-size:10px; color:oklch(0.62 0.03 158);">{{ s.dateLabel }}</span>
-                  <span onClick="{{ s.remove }}" style="cursor:pointer; color:oklch(0.66 0.03 158); font-size:13px;">✕</span>
+          <div class="lc-scroll" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:280px; overflow-y:auto; padding:2px 4px 2px 2px;">
+            <sc-for list="{{ failedCards }}" as="c" hint-placeholder-count="1">
+              <div style="perspective:1000px; height:114px;">
+                <div style="position:relative; width:100%; height:100%;">
+                  <div onClick="{{ c.toggle }}" style="position:absolute; inset:0; opacity:{{ c.frontOpacity }}; transform:{{ c.frontTransform }}; pointer-events:{{ c.frontPE }}; transition:opacity 0.3s ease, transform 0.4s ease; cursor:pointer; border-radius:14px; padding:12px 14px; background:{{ c.frontBg }}; border:1px solid {{ c.frontBorder }}; display:flex; flex-direction:column;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="width:9px; height:9px; border-radius:3px; background:{{ c.badgeColor }};"></span>
+                      <span style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.04em; text-transform:uppercase; color:oklch(0.56 0.03 158);">{{ c.difficulty }}</span>
+                      <span style="margin-left:auto; font-family:'Space Mono',monospace; font-size:9px; color:oklch(0.62 0.03 158);">{{ c.dateLabel }}</span>
+                    </div>
+                    <div style="flex:1; display:flex; align-items:center; font-family:'Cormorant Garamond',serif; font-weight:600; font-size:19px; line-height:1.15; color:oklch(0.4 0.06 35); overflow:hidden;">{{ c.name }}</div>
+                    <div style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.04em; color:{{ c.accent }};">↻ {{ c.hint }}</div>
+                  </div>
+                  <div onClick="{{ c.toggle }}" style="position:absolute; inset:0; opacity:{{ c.backOpacity }}; transform:{{ c.backTransform }}; pointer-events:{{ c.backPE }}; transition:opacity 0.3s ease, transform 0.4s ease; cursor:pointer; border-radius:14px; padding:11px 13px; background:oklch(0.99 0.006 150); border:1.5px solid {{ c.accent }}; display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.08em; text-transform:uppercase; color:{{ c.accent }};">remember</span>
+                      <span onClick="{{ c.remove }}" style="margin-left:auto; cursor:pointer; color:oklch(0.66 0.03 158); font-size:12px;">✕</span>
+                    </div>
+                    <textarea onClick="{{ c.stop }}" value="{{ c.note }}" onInput="{{ c.onNote }}" placeholder="{{ c.notePlaceholder }}" style="flex:1; width:100%; resize:none; border:none; outline:none; background:transparent; font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:oklch(0.4 0.06 35); line-height:1.4;"></textarea>
+                  </div>
                 </div>
-                <input type="text" value="{{ s.note }}" onInput="{{ s.onNote }}" placeholder="💡 what to remember next time…" style="width:100%; padding:7px 10px; border-radius:8px; border:1px solid oklch(0.9 0.03 40); background:oklch(0.99 0.006 150); font-size:12px; color:oklch(0.4 0.06 35); outline:none;">
               </div>
             </sc-for>
             <sc-if value="{{ noFailed }}" hint-placeholder-val="{{ false }}">
-              <div style="text-align:center; padding:14px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:14px; color:oklch(0.6 0.03 158);">nothing to review — log missed attempts to revisit them</div>
+              <div style="grid-column:1 / -1; text-align:center; padding:14px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:14px; color:oklch(0.6 0.03 158);">nothing to review — log missed attempts to revisit them</div>
             </sc-if>
           </div>
         </div>
@@ -561,7 +619,9 @@
             <div style="text-align:center; padding:16px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:15px; color:oklch(0.58 0.03 158);">no applications yet — add one below</div>
           </sc-if>
           <div style="display:flex; gap:10px; align-items:center; margin-top:12px;">
-            <input type="text" data-app-add placeholder="+ Company — Role  (Enter or Save)" onKeyDown="{{ onAddApp }}" style="flex:1; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+            <input type="text" data-app-company placeholder="company…" onKeyDown="{{ onAppKey }}" style="flex:2; min-width:0; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+            <input type="text" data-app-role placeholder="role…" onKeyDown="{{ onAppKey }}" style="flex:2; min-width:0; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+            <button onClick="{{ addAppFromForm }}" style="flex:0 0 auto; padding:0 22px; border-radius:12px; border:none; cursor:pointer; background:oklch(0.55 0.13 160); color:#fff; font-weight:600; font-size:14px;">Add</button>
             <button onClick="{{ saveApps }}" style="cursor:pointer; padding:11px 18px; border-radius:12px; border:none; font-weight:700; font-size:13px; color:{{ saveBtnColor }}; background:{{ saveBtnBg }}; white-space:nowrap;">{{ saveBtnLabel }}</button>
           </div>
           <div style="display:flex; gap:10px; align-items:stretch; margin-top:10px;">
@@ -636,10 +696,10 @@
 </div></template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script src="config.js?v=8"></script>
-  <script src="runtime.js?v=8"></script>
-  <script src="data.js?v=8"></script>
-  <script src="dashboard.js?v=8"></script>
-  <script src="boot.js?v=8"></script>
+  <script src="config.js?v=9"></script>
+  <script src="runtime.js?v=9"></script>
+  <script src="data.js?v=9"></script>
+  <script src="dashboard.js?v=9"></script>
+  <script src="boot.js?v=9"></script>
 </body>
 </html>

@@ -71,7 +71,7 @@ class Component extends DCLogic {
     if (window.DB && window.DB.save) window.DB.save(this.state.data);
   }
 
-  state = { data: null, view: 'home', weekOffset: 0 };
+  state = { data: null, view: 'home', weekOffset: 0, calDraft: null, leetDiff: 'Easy', leetOutcome: 'solved', flipped: null };
 
   // One-time normalization: the app is lb-only now. Any state still carrying kg
   // (old localStorage cache or a stale blob) gets its values converted so a stale
@@ -189,8 +189,8 @@ class Component extends DCLogic {
     const row = { id: this.newId(), title, type: 'One-off', tag: 'Life', done: false, doDate: this.tomorrowISO(), whatToDo: '', archived: false };
     this.mutate((d) => { d.tasks.push(row); }); const DB = this.db(); if (DB) DB.insertTask(row);
   };
-  addRoutine = (name) => {
-    const row = { id: this.newId(), name, active: true, order: this.state.data.routines.length + 1, whatToDo: '' };
+  addRoutine = (name, detail) => {
+    const row = { id: this.newId(), name, active: true, order: this.state.data.routines.length + 1, whatToDo: detail || '' };
     this.mutate((d) => { d.routines.push(row); }); const DB = this.db(); if (DB) DB.insertRoutine(row);
   };
   toggleRoutine = (id) => {
@@ -225,11 +225,12 @@ class Component extends DCLogic {
     const DB = this.db(); if (!DB) return;
     clearTimeout(this._appsT);
     if (!auto) {
-      const pending = document.querySelector('[data-app-add]');
-      if (pending && pending.value.trim()) {
-        const parts = pending.value.split('—').length > 1 ? pending.value.split('—') : pending.value.split('-');
-        const row = { id: this.newId(), company: parts[0].trim(), role: (parts[1] || '').trim(), status: 'Wishlist', link: '', location: '', appliedOn: '', notes: '', sortOrder: this.state.data.apps.length };
-        if (row.company) { this.mutate((d) => { d.apps.push(row); }); pending.value = ''; }
+      const c = document.querySelector('[data-app-company]');
+      const r = document.querySelector('[data-app-role]');
+      if (c && c.value.trim()) {
+        const row = { id: this.newId(), company: c.value.trim(), role: r ? r.value.trim() : '', status: 'Wishlist', link: '', location: '', appliedOn: '', notes: '', sortOrder: this.state.data.apps.length };
+        this.mutate((d) => { d.apps.push(row); });
+        c.value = ''; if (r) r.value = '';
       }
       this.setState({ saveState: 'saving' });
     }
@@ -291,8 +292,8 @@ class Component extends DCLogic {
   };
 
   // ---------- calendar events ----------
-  addEvent = (title, date, startMin, endMin) => {
-    const row = { id: this.newId(), title, date, startMin, endMin, color: 'oklch(0.6 0.1 200)', recurs: null, source: 'user' };
+  addEvent = (title, date, startMin, endMin, color) => {
+    const row = { id: this.newId(), title, date, startMin, endMin, color: color || 'oklch(0.6 0.1 200)', recurs: null, source: 'user' };
     this.mutate((d) => { (d.calEvents = d.calEvents || []).push(row); }); const DB = this.db(); if (DB) DB.insertEvent(row);
   };
   removeEventOccurrence = (id, date, recurring) => {
@@ -382,7 +383,7 @@ class Component extends DCLogic {
         { key: 'prep', label: 'Prep', v: 'prep' },
       ].map((n) => ({ ...n, icon: ic[n.key], go: () => this.setView(n.v), color: view === n.v ? 'oklch(0.26 0.06 150)' : 'oklch(0.95 0.02 150)', bg: view === n.v ? 'oklch(0.86 0.14 88)' : 'transparent' })),
     };
-    if (!d) return { ...base, doneLabel: '—' };
+    if (!d) return { ...base, doneLabel: '—', donePctLabel: '—', homeCounterBg: 'oklch(0.9 0.03 152)' };
 
     const today = this.todayISO();
 
@@ -419,6 +420,16 @@ class Component extends DCLogic {
 
     // ---- calendar week grid ----
     const HSTART = 6, HEND = 23, ROW = 54;
+    const CAL_COLORS = ['oklch(0.6 0.1 200)', 'oklch(0.58 0.09 150)', 'oklch(0.62 0.13 25)', 'oklch(0.56 0.11 300)', 'oklch(0.6 0.1 55)'];
+    // click an empty slot -> open the quick-add popover snapped to 30-min steps
+    const makeGridClick = (iso) => (e) => {
+      if (e.target.closest && e.target.closest('[data-cal-ev]')) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      let mins = HSTART * 60 + Math.round(((y / ROW) * 60) / 30) * 30;
+      mins = Math.max(HSTART * 60, Math.min(HEND * 60 - 30, mins));
+      this.setState({ calDraft: { iso, start: mins, end: mins + 60, color: CAL_COLORS[0], x: e.clientX, y: e.clientY } }, () => { const i = document.querySelector('[data-cal-title]'); if (i) i.focus(); });
+    };
     const gridHeight = (HEND - HSTART) * ROW;
     const gridHeightPx = `${gridHeight}px`;
     const hourLines = [];
@@ -444,12 +455,13 @@ class Component extends DCLogic {
         top: `${((ev.startMin - HSTART * 60) / 60) * ROW}px`,
         height: `${Math.max(16, ((ev.endMin - ev.startMin) / 60) * ROW - 2)}px`,
         timeLabel: this.minLabel(ev.startMin),
-        remove: () => this.removeEventOccurrence(ev.id, ciso, ev.recurs === 'weekly'),
+        rmDisplay: 'block',
+        remove: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.removeEventOccurrence(ev.id, ciso, ev.recurs === 'weekly'); },
       }));
       const allday = [];
       (tasksByIso[ciso] || []).forEach((t) => allday.push({ text: t.title, bg: t.type === 'Daily' ? 'oklch(0.9 0.05 165)' : 'oklch(0.9 0.05 205)', color: t.type === 'Daily' ? 'oklch(0.32 0.07 160)' : 'oklch(0.32 0.07 210)', canRemove: false, remove: () => {} }));
       calEvents.filter((ev) => ev.startMin == null && appliesOn(ev, dow, ciso)).forEach((ev) => allday.push({ text: ev.title, bg: 'oklch(0.9 0.05 150)', color: 'oklch(0.32 0.06 150)', canRemove: true, remove: () => this.removeEventOccurrence(ev.id, ciso, ev.recurs === 'weekly') }));
-      dayColumns.push({ iso: ciso, events, allday, todayTint: isTod ? 'oklch(0.97 0.02 150)' : 'transparent' });
+      dayColumns.push({ iso: ciso, events, allday, todayTint: isTod ? 'oklch(0.97 0.02 150)' : 'transparent', onGridClick: makeGridClick(ciso) });
     }
     const midWeek = new Date(weekStart); midWeek.setDate(weekStart.getDate() + 3);
     const calMonthName = months[midWeek.getMonth()];
@@ -457,16 +469,25 @@ class Component extends DCLogic {
     const prevWeek = () => this.shiftWeek(-1);
     const nextWeek = () => this.shiftWeek(1);
     const thisWeek = this.thisWeek;
-    const onAddEvent = () => {
-      const t = document.querySelector('[data-ev-title]'), day = document.querySelector('[data-ev-day]');
-      const s = document.querySelector('[data-ev-start]'), e2 = document.querySelector('[data-ev-end]');
-      if (!t || !t.value.trim()) return;
-      const toMin = (v) => { if (!v) return null; const p = v.split(':'); return (+p[0]) * 60 + (+(p[1] || 0)); };
-      let sm = toMin(s && s.value), em = toMin(e2 && e2.value);
-      if (sm == null) sm = 540; if (em == null || em <= sm) em = sm + 60;
-      this.addEvent(t.value.trim(), (day && day.value) || today, sm, em);
-      if (t) t.value = '';
-    };
+    // ---- calendar quick-add popover (persists via addEvent -> events table) ----
+    const draft = this.state.calDraft;
+    let calDraftOpen = false, calDraft = null;
+    if (draft) {
+      calDraftOpen = true;
+      const dd = new Date(draft.iso + 'T00:00:00');
+      const commit = () => { const i = document.querySelector('[data-cal-title]'); const title = i ? i.value.trim() : ''; if (!title) { this.setState({ calDraft: null }); return; } this.addEvent(title, draft.iso, draft.start, draft.end, draft.color); this.setState({ calDraft: null }); };
+      const cancel = () => this.setState({ calDraft: null });
+      const vw = (typeof window !== 'undefined' ? window.innerWidth : 1200), vh = (typeof window !== 'undefined' ? window.innerHeight : 800);
+      calDraft = {
+        whenLabel: `${days[dd.getDay()]} · ${this.minLabel(draft.start)} – ${this.minLabel(draft.end)}`,
+        left: `${Math.max(12, Math.min(draft.x + 8, vw - 262))}px`,
+        top: `${Math.max(12, Math.min(draft.y, vh - 300))}px`,
+        durChips: [30, 60, 90, 120].map((m) => ({ label: m < 60 ? `${m}m` : (m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`), bg: (draft.end - draft.start) === m ? 'oklch(0.55 0.13 160)' : 'oklch(0.94 0.02 152)', color: (draft.end - draft.start) === m ? '#fff' : 'oklch(0.42 0.05 158)', set: () => this.setState((s) => ({ calDraft: { ...s.calDraft, end: s.calDraft.start + m } })) })),
+        colorDots: CAL_COLORS.map((c) => ({ color: c, ring: draft.color === c ? `0 0 0 2px oklch(0.99 0.006 150), 0 0 0 4px ${c}` : 'none', set: () => this.setState((s) => ({ calDraft: { ...s.calDraft, color: c } })) })),
+        onKey: (e) => { if (e.key === 'Enter') { if (e.preventDefault) e.preventDefault(); commit(); } else if (e.key === 'Escape') { cancel(); } },
+        commit, cancel,
+      };
+    }
 
     // ---- leetcode ----
     const cE = 'oklch(0.8 0.13 130)', cM = 'oklch(0.75 0.12 90)', cH = 'oklch(0.55 0.11 150)';
@@ -495,6 +516,32 @@ class Component extends DCLogic {
     const failedList = [...failedSolves].reverse().map(mapSolve);
     const noSolves = solvedList.length === 0;
     const noFailed = failedList.length === 0;
+
+    // ---- leetcode flip cards (tap to flip; note editor on the back) ----
+    const makeCard = (s) => {
+      const flipped = this.state.flipped === s.id;
+      const isFail = s.outcome === 'failed';
+      const dd = new Date(s.date + 'T00:00:00');
+      const hasNote = !!(s.note && s.note.trim());
+      return {
+        id: s.id, name: s.name, difficulty: s.difficulty,
+        dateLabel: `${mAbbr[dd.getMonth()]} ${dd.getDate()}`,
+        note: s.note || '', notePlaceholder: isFail ? '💡 what to remember next time…' : '💡 best way to solve… (hash map, two pointers, DP)',
+        hint: hasNote ? 'tap for approach' : 'tap to add approach',
+        badgeColor: diffColor[s.difficulty] || cE,
+        frontBg: isFail ? 'oklch(0.975 0.025 40)' : 'oklch(0.975 0.02 150)',
+        frontBorder: isFail ? 'oklch(0.9 0.05 40)' : 'oklch(0.9 0.03 152)',
+        accent: isFail ? 'oklch(0.58 0.14 35)' : 'oklch(0.52 0.12 155)',
+        frontOpacity: flipped ? '0' : '1', frontTransform: flipped ? 'rotateY(85deg)' : 'rotateY(0deg)', frontPE: flipped ? 'none' : 'auto',
+        backOpacity: flipped ? '1' : '0', backTransform: flipped ? 'rotateY(0deg)' : 'rotateY(-85deg)', backPE: flipped ? 'auto' : 'none',
+        toggle: () => this.setState((st) => ({ flipped: st.flipped === s.id ? null : s.id })),
+        onNote: (e) => this.setSolveNote(s.id, e.target.value),
+        stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+        remove: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.removeSolve(s.id); },
+      };
+    };
+    const solvedCards = [...solvedSolves].reverse().map(makeCard);
+    const failedCards = [...failedSolves].reverse().map(makeCard);
 
     // ---- prep: books with chapter-derived progress ----
     const chaptersAll = d.chapters || [];
@@ -593,11 +640,39 @@ class Component extends DCLogic {
     const onAddRoutine = enter(this.addRoutine);
     const onAddApp = (e) => { if (e.key === 'Enter' && e.target.value.trim()) { const parts = e.target.value.split('—').length > 1 ? e.target.value.split('—') : e.target.value.split('-'); this.addApp(parts[0].trim(), (parts[1] || '').trim()); e.target.value = ''; } };
 
+    // ---- habit quick-add (name + detail + suggestion chips) ----
+    const readHabitForm = () => { const n = document.querySelector('[data-habit-name]'); const dt = document.querySelector('[data-habit-detail]'); return { name: n ? n.value.trim() : '', detail: dt ? dt.value.trim() : '', clear: () => { if (n) n.value = ''; if (dt) dt.value = ''; if (n) n.focus(); } }; };
+    const addHabitFromForm = () => { const f = readHabitForm(); if (!f.name) return; this.addRoutine(f.name, f.detail); f.clear(); };
+    const onHabitKey = (e) => { if (e.key === 'Enter') { if (e.preventDefault) e.preventDefault(); addHabitFromForm(); } };
+    const habitSuggestions = [
+      { label: 'Workout', detail: '45 min' }, { label: 'Read', detail: '20 pages' }, { label: 'Meditate', detail: '10 min' },
+      { label: 'Water', detail: '2 L' }, { label: 'Journal', detail: '1 entry' }, { label: 'Walk', detail: '8k steps' }, { label: 'LeetCode', detail: '2 problems' },
+    ].map((h) => ({ label: h.label, add: () => this.addRoutine(h.label, h.detail) }));
+
+    // ---- application quick-add (two fields) ----
+    const addAppFromForm = () => { const c = document.querySelector('[data-app-company]'); const r = document.querySelector('[data-app-role]'); const company = c ? c.value.trim() : ''; if (!company) return; this.addApp(company, r ? r.value.trim() : ''); if (c) c.value = ''; if (r) r.value = ''; if (c) c.focus(); };
+    const onAppKey = (e) => { if (e.key === 'Enter') { if (e.preventDefault) e.preventDefault(); addAppFromForm(); } };
+
+    // ---- leetcode segmented quick-add ----
+    const curDiff = this.state.leetDiff || 'Easy';
+    const curOutcome = this.state.leetOutcome || 'solved';
+    const leetDiffPicker = ['Easy', 'Medium', 'Hard'].map((dn) => ({ label: dn, bg: curDiff === dn ? diffColor[dn] : 'oklch(0.955 0.02 152)', textColor: curDiff === dn ? '#fff' : 'oklch(0.44 0.05 158)', set: () => this.setState({ leetDiff: dn }) }));
+    const leetOutcomePicker = [{ key: 'solved', label: '✓ Solved' }, { key: 'failed', label: '✕ Failed · review' }].map((o) => ({ label: o.label, bg: curOutcome === o.key ? (o.key === 'solved' ? 'oklch(0.55 0.11 155)' : 'oklch(0.58 0.14 35)') : 'oklch(0.955 0.02 152)', textColor: curOutcome === o.key ? '#fff' : 'oklch(0.44 0.05 158)', set: () => this.setState({ leetOutcome: o.key }) }));
+    const addLeetFromForm = () => { const f = readLeetForm(); if (!f.name) return; this.addSolve(f.name, curDiff, curOutcome, f.note); f.clear(); const i = document.querySelector('[data-leet-input]'); if (i) i.focus(); };
+    const onLeetKey2 = (e) => { if (e.key === 'Enter') { if (e.preventDefault) e.preventDefault(); addLeetFromForm(); } };
+    const leetAddBtnBg = curOutcome === 'solved' ? 'oklch(0.55 0.13 160)' : 'oklch(0.58 0.14 35)';
+    const leetAddBtnLabel = curOutcome === 'solved' ? 'Add solve' : 'Add to review';
+
+    // ---- home counter ring ----
+    const donePctNum = todayTasks.length ? Math.round((doneN / todayTasks.length) * 100) : 0;
+    const donePctLabel = `${donePctNum}%`;
+    const homeCounterBg = `conic-gradient(oklch(0.62 0.14 150) 0 ${donePctNum}%, oklch(0.9 0.03 152) 0 100%)`;
+
     return {
       ...base,
       todayTasks, doneLabel, noTasks, todayDailyTasks, todayOneoffTasks, noDailyToday, noOneoffToday, dailyDoneLabel, oneoffDoneLabel, oneOffs, noOneOffs, archive, noArchive, archiveCount,
-      gridHeightPx, hourLines, weekDays, dayColumns, calMonthName, calYear, prevWeek, nextWeek, thisWeek, calDays, onAddEvent,
-      donutBg, leetTotal, leetLegend, leetTodayLabel, leetSolvedBtns, leetFailedBtns, onLeetKey, onLeetCancel, solvedList, noSolves, failedList, noFailed, failedCount, successLabel,
+      gridHeightPx, hourLines, weekDays, dayColumns, calMonthName, calYear, prevWeek, nextWeek, thisWeek, calDraftOpen, calDraft,
+      donutBg, leetTotal, leetLegend, leetTodayLabel, leetSolvedBtns, leetFailedBtns, onLeetKey, onLeetCancel, solvedList, noSolves, failedList, noFailed, failedCount, successLabel, solvedCards, failedCards,
       sysBooks, ood, oodPctLabel, oodFrac,
       appRows, noApps, pipeline, routines, saveApps, onImportApps, saveBtnLabel, saveBtnBg, saveBtnColor,
       appsTotal, appsActive, appsOffers, booksAvgLabel, leetWeekLabel,
@@ -605,6 +680,10 @@ class Component extends DCLogic {
       weightUnit, weightLatest, weightDelta, weightDeltaColor, weightLine, weightHasLine, hasWeight, onAddWeight,
       quotes, currently,
       onAddTaskToday, onAddOneOff, onAddRoutine, onAddApp,
+      addHabitFromForm, onHabitKey, habitSuggestions,
+      addAppFromForm, onAppKey,
+      leetDiffPicker, leetOutcomePicker, addLeetFromForm, onLeetKey2, leetAddBtnBg, leetAddBtnLabel,
+      donePctLabel, homeCounterBg,
     };
   }
 }
