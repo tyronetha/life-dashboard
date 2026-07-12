@@ -99,6 +99,11 @@
     },
 
     // ---------- books / chapters ----------
+    insertBooksBulk(list) {
+      var uid = this.user.id;
+      var rows = list.map(function (b) { return { id: b.id, user_id: uid, title: b.title, short: b.short || null, sort_order: b.sortOrder || 0 }; });
+      return SB.from('books').insert(rows).then(logErr('insertBooksBulk'));
+    },
     insertChapter(c)     { return SB.from('book_chapters').insert({ id: c.id, book_id: c.bookId, user_id: this.user.id, number: c.number, title: c.title, status: c.status || 'todo', sort_order: c.sortOrder || 0 }).then(logErr('insertChapter')); },
     setChapterStatus(id, status) { return SB.from('book_chapters').update({ status: status }).eq('id', id).then(logErr('setChapterStatus')); },
     deleteChapter(id)    { return SB.from('book_chapters').delete().eq('id', id).then(logErr('deleteChapter')); },

@@ -70,6 +70,7 @@ class Component extends DCLogic {
         data = { ...data, routines: t.routines, tasks: t.tasks, apps: t.apps,
                  books: t.books, chapters: t.chapters, calEvents: t.calEvents, calExceptions: t.calExceptions };
         this.setState({ data }, () => this.save());
+        await this.ensureFirstRun(data);          // first run: seed default books + habit into empty tables
         await this.ensureSeedCalendar(data);      // first run: seed the weekday routine as recurring events
         return;
       } catch (e) { console.error('table load failed, using local', e); }
@@ -77,6 +78,25 @@ class Component extends DCLogic {
     data = this.runDailyGen(data);                // offline fallback
     data.chapters = data.chapters || []; data.calEvents = data.calEvents || []; data.calExceptions = data.calExceptions || [];
     this.setState({ data }, () => this.save());
+  }
+
+  // First run for a brand-new account (empty tables): seed the default books and
+  // the Leetcode habit so it matches the design's starting state.
+  async ensureFirstRun(data) {
+    const DB = this.db();
+    if (!DB || data._seededTables) return;
+    if ((data.routines || []).length || (data.books || []).length || (data.tasks || []).length) return;
+    const routines = [{ id: this.newId(), name: 'Leetcode', active: true, order: 1, whatToDo: '5 problems' }];
+    const books = [
+      { id: this.newId(), title: 'System Design Interview — Vol 1', short: 'SDI Vol 1', sortOrder: 1 },
+      { id: this.newId(), title: 'System Design Interview — Vol 2', short: 'SDI Vol 2', sortOrder: 2 },
+      { id: this.newId(), title: 'Designing Data-Intensive Applications', short: 'DDIA', sortOrder: 3 },
+    ];
+    for (const r of routines) await DB.insertRoutine(r);
+    await DB.insertBooksBulk(books);
+    await DB.generateDay();                        // materialize today's daily for the new habit
+    const t = await DB.loadTables();
+    this.setState((s) => ({ data: { ...s.data, routines: t.routines, tasks: t.tasks, books: t.books, chapters: t.chapters, _seededTables: true } }), () => this.save());
   }
 
   // Seed the fixed weekday routine into the events table once, so the calendar
