@@ -83,9 +83,18 @@
   /* ---- responsive layout (overrides the template's inline styles) ---- */
   .app-outer { max-width: 1560px !important; }
 
+  /* laptop screens: fill the viewport instead of floating in a small frame */
+  @media (min-width: 901px) and (max-width: 1680px) {
+    .app-outer { max-width: none !important; padding: 12px !important; }
+    .app-shell { min-height: calc(100vh - 24px) !important; }
+  }
+
   @media (max-width: 1100px) {
-    .app-outer { padding: 18px 12px !important; }
     .app-main { padding: 20px 16px !important; }
+  }
+
+  @media (max-width: 900px) {
+    .app-outer { padding: 18px 12px !important; }
   }
 
   /* tablet / phone: sidebar becomes a top nav bar, columns stack */
