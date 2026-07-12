@@ -47,6 +47,13 @@
       var t = node.data;
       if (t.indexOf('{{') === -1) { destParent.appendChild(document.createTextNode(t)); return; }
       var v = interp(t, scopes);
+      // A bound value that is itself SVG markup (e.g. nav icons) becomes a real element.
+      if (typeof v === 'string' && v.lastIndexOf('<svg', 0) === 0) {
+        var host = document.createElement('div');
+        host.innerHTML = v;
+        while (host.firstChild) destParent.appendChild(host.firstChild);
+        return;
+      }
       destParent.appendChild(document.createTextNode(v == null ? '' : String(v)));
       return;
     }

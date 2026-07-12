@@ -342,6 +342,20 @@ class Component extends DCLogic {
   }
   minLabel(m) { let h = Math.floor(m / 60), mm = m % 60; const ap = h >= 12 ? 'PM' : 'AM'; let hh = h % 12; if (hh === 0) hh = 12; return `${hh}:${String(mm).padStart(2, '0')} ${ap}`; }
 
+  // Hand-drawn nav icons from the updated design — SVG strings (the runtime
+  // turns a bound "<svg…" string into a real element).
+  icons() {
+    const wrap = (inner) => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;">${inner}</svg>`;
+    return {
+      home: wrap('<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>'),
+      calendar: wrap('<path d="M12 21v-8"/><path d="M12 13c0-3.2-2.2-5.2-6.2-5.2C5.8 11 8 13 12 13Z"/><path d="M12 12c0-3.2 2.2-5.2 6.2-5.2C18.2 10 16 12 12 12Z"/>'),
+      daily: wrap('<path d="M4 20c0-8.5 6-14.5 16.5-16.5C18.5 12 12.5 18 4 20Z"/><path d="M4.5 19.5C8.5 14.5 12.5 11.5 17.5 9.5"/>'),
+      leetcode: wrap('<path d="M12 4c.5 4.7 1.3 5.5 6 6-4.7.5-5.5 1.3-6 6-.5-4.7-1.3-5.5-6-6 4.7-.5 5.5-1.3 6-6Z"/>'),
+      applications: wrap('<path d="M12 21V8"/><path d="M12 12.5c-2.6 0-4.2-1.6-4.2-4.2 2.6 0 4.2 1.6 4.2 4.2Z"/><path d="M12 12.5c2.6 0 4.2-1.6 4.2-4.2-2.6 0-4.2 1.6-4.2 4.2Z"/><path d="M12 17c-2.6 0-4.2-1.6-4.2-4.2 2.6 0 4.2 1.6 4.2 4.2Z"/><path d="M12 17c2.6 0 4.2-1.6 4.2-4.2-2.6 0-4.2 1.6-4.2 4.2Z"/>'),
+      prep: wrap('<path d="M6.5 13.5h11l-1.2 6.5H7.7Z"/><path d="M12 13.5c0-3.4-1.8-5.4-5.4-5.4 0 3.2 2.1 5.4 5.4 5.4Z"/><path d="M12 13.5c0-4 2.1-6.2 5.6-6.2 0 3.6-2.3 6.2-5.6 6.2Z"/>'),
+    };
+  }
+
   renderVals() {
     const d = this.state.data;
     const name = this.props.name ?? 'Tyrone';
@@ -355,17 +369,18 @@ class Component extends DCLogic {
     const wd = new Date(this.todayISO() + 'T12:00:00');
     const todayLabel = `${days[wd.getDay()]}, ${months[wd.getMonth()]} ${wd.getDate()}`;
     const view = this.state.view;
+    const ic = this.icons();
     const base = {
       name, greeting, todayLabel,
       isHome: view === 'home', isCal: view === 'calendar', isDaily: view === 'daily', isLeet: view === 'leetcode', isApps: view === 'applications', isPrep: view === 'prep',
       navSide: [
-        { emoji: '🍀', label: 'Home', v: 'home' },
-        { emoji: '🌱', label: 'Calendar', v: 'calendar' },
-        { emoji: '🍃', label: 'Daily', v: 'daily' },
-        { emoji: '✦', label: 'LeetCode', v: 'leetcode' },
-        { emoji: '🌾', label: 'Applications', v: 'applications' },
-        { emoji: '🪴', label: 'Prep', v: 'prep' },
-      ].map((n) => ({ ...n, go: () => this.setView(n.v), color: view === n.v ? 'oklch(0.2 0.05 160)' : 'oklch(0.95 0.02 150)', bg: view === n.v ? 'oklch(0.86 0.13 168)' : 'transparent' })),
+        { key: 'home', label: 'Home', v: 'home' },
+        { key: 'calendar', label: 'Calendar', v: 'calendar' },
+        { key: 'daily', label: 'Daily', v: 'daily' },
+        { key: 'leetcode', label: 'LeetCode', v: 'leetcode' },
+        { key: 'applications', label: 'Applications', v: 'applications' },
+        { key: 'prep', label: 'Prep', v: 'prep' },
+      ].map((n) => ({ ...n, icon: ic[n.key], go: () => this.setView(n.v), color: view === n.v ? 'oklch(0.26 0.06 150)' : 'oklch(0.95 0.02 150)', bg: view === n.v ? 'oklch(0.86 0.14 88)' : 'transparent' })),
     };
     if (!d) return { ...base, doneLabel: '—' };
 
@@ -454,7 +469,7 @@ class Component extends DCLogic {
     };
 
     // ---- leetcode ----
-    const cE = 'oklch(0.8 0.13 165)', cM = 'oklch(0.72 0.12 205)', cH = 'oklch(0.5 0.11 158)';
+    const cE = 'oklch(0.8 0.13 130)', cM = 'oklch(0.75 0.12 90)', cH = 'oklch(0.55 0.11 150)';
     const solvedSolves = d.solves.filter((s) => s.outcome !== 'failed');
     const failedSolves = d.solves.filter((s) => s.outcome === 'failed');
     const leet = { Easy: 0, Medium: 0, Hard: 0 };
