@@ -7,8 +7,19 @@ class Component extends DCLogic {
   KEY = 'life-dashboard-v1';
 
   iso(d) { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); }
-  todayISO() { return this.iso(new Date()); }
-  tomorrowISO() { const d = new Date(); d.setDate(d.getDate() + 1); return this.iso(d); }
+  // The working day is normally the device date — but if the server has already
+  // generated daily instances for a later date (nightly job ran ahead of this
+  // device's midnight), follow the server so the fresh day shows immediately.
+  todayISO() {
+    const deviceToday = this.iso(new Date());
+    const d = this.state && this.state.data;
+    if (d && d.tasks) {
+      const latestDaily = d.tasks.filter((t) => t.type === 'Daily' && !t.archived).map((t) => t.doDate).sort().pop();
+      if (latestDaily && latestDaily > deviceToday) return latestDaily;
+    }
+    return deviceToday;
+  }
+  tomorrowISO() { const d = new Date(this.todayISO() + 'T12:00:00'); d.setDate(d.getDate() + 1); return this.iso(d); }
   newId() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('u' + Date.now() + Math.random().toString(16).slice(2)); }
   db() { return (window.DB && window.DB.user) ? window.DB : null; }
 
@@ -341,7 +352,8 @@ class Component extends DCLogic {
     const mAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const hour = now.getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const todayLabel = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+    const wd = new Date(this.todayISO() + 'T12:00:00');
+    const todayLabel = `${days[wd.getDay()]}, ${months[wd.getMonth()]} ${wd.getDate()}`;
     const view = this.state.view;
     const base = {
       name, greeting, todayLabel,
