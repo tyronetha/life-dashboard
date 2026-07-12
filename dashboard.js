@@ -17,7 +17,11 @@ class Component extends DCLogic {
     return {
       lastGen: '',
       tasks: [ { id: 'seed-notion', title: 'Design out Notion', type: 'One-off', tag: 'Life', done: false, doDate: t, whatToDo: '', archived: false } ],
-      routines: [ { id: 'r-leet', name: 'Leetcode', active: true, order: 1, whatToDo: '5 problems' } ],
+      routines: [
+        { id: 'r-leet', name: 'Leetcode', active: true, order: 1, whatToDo: '5 questions' },
+        { id: 'r-sysd', name: 'System design', active: true, order: 2, whatToDo: '1 chapter' },
+        { id: 'r-walk', name: 'Walking', active: true, order: 3, whatToDo: '1 hour @ 3 mph' },
+      ],
       apps: [],
       solves: [ { id: 's-twosum', name: 'Two Sum', difficulty: 'Easy', date: t, outcome: 'solved' } ],
       books: [
@@ -35,7 +39,7 @@ class Component extends DCLogic {
         { id: 'g2', title: 'Solve 150 LeetCode problems', pct: 1 },
       ],
       weights: [],
-      weightUnit: 'kg',
+      weightUnit: 'lb',
       quotes: [
         '“A line you live by — tap to make it yours.”',
         '“Something to remember on the hard days.”',
@@ -86,7 +90,11 @@ class Component extends DCLogic {
     const DB = this.db();
     if (!DB || data._seededTables) return;
     if ((data.routines || []).length || (data.books || []).length || (data.tasks || []).length) return;
-    const routines = [{ id: this.newId(), name: 'Leetcode', active: true, order: 1, whatToDo: '5 problems' }];
+    const routines = [
+      { id: this.newId(), name: 'Leetcode', active: true, order: 1, whatToDo: '5 questions' },
+      { id: this.newId(), name: 'System design', active: true, order: 2, whatToDo: '1 chapter' },
+      { id: this.newId(), name: 'Walking', active: true, order: 3, whatToDo: '1 hour @ 3 mph' },
+    ];
     const books = [
       { id: this.newId(), title: 'System Design Interview — Vol 1', short: 'SDI Vol 1', sortOrder: 1 },
       { id: this.newId(), title: 'System Design Interview — Vol 2', short: 'SDI Vol 2', sortOrder: 2 },
@@ -181,9 +189,35 @@ class Component extends DCLogic {
     this.mutate((d) => { const x = d.apps.find((y) => y.id === id); if (x) x.status = status; });
     const DB = this.db(); if (DB) DB.setAppStatus(id, status);
   };
-  // applications grid: edit a cell locally; persist the whole grid via batch upsert
-  editApp = (id, field, value) => { this.mutate((d) => { const a = d.apps.find((x) => x.id === id); if (a) a[field] = value; }); };
-  saveApps = () => { const DB = this.db(); if (DB) DB.upsertApps(this.state.data.apps); };
+  // applications grid: edit a cell locally, then autosave (debounced batch upsert)
+  editApp = (id, field, value) => {
+    this.mutate((d) => { const a = d.apps.find((x) => x.id === id); if (a) a[field] = value; });
+    clearTimeout(this._appsT);
+    this._appsT = setTimeout(() => this.saveApps(true), 900);
+  };
+  // Save button: also ingest any un-submitted quick-add text, then upsert the grid.
+  // Shows "Saving… / Saved ✓ / Save failed" on the button itself.
+  saveApps = async (auto) => {
+    const DB = this.db(); if (!DB) return;
+    clearTimeout(this._appsT);
+    if (!auto) {
+      const pending = document.querySelector('[data-app-add]');
+      if (pending && pending.value.trim()) {
+        const parts = pending.value.split('—').length > 1 ? pending.value.split('—') : pending.value.split('-');
+        const row = { id: this.newId(), company: parts[0].trim(), role: (parts[1] || '').trim(), status: 'Wishlist', link: '', location: '', appliedOn: '', notes: '', sortOrder: this.state.data.apps.length };
+        if (row.company) { this.mutate((d) => { d.apps.push(row); }); pending.value = ''; }
+      }
+      this.setState({ saveState: 'saving' });
+    }
+    const res = await DB.upsertApps(this.state.data.apps);
+    if (!auto) {
+      this.setState({ saveState: (res && res.error) ? 'error' : 'saved' });
+      clearTimeout(this._saveMsgT);
+      this._saveMsgT = setTimeout(() => this.setState({ saveState: null }), 2200);
+    } else if (res && res.error) {
+      this.setState({ saveState: 'error' });
+    }
+  };
   importApps = (text) => {
     const rows = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
       const c = line.split(/\t|,/).map((s) => s.trim());
@@ -447,6 +481,10 @@ class Component extends DCLogic {
     }));
     const noApps = appRows.length === 0;
     const saveApps = () => this.saveApps();
+    const sv = this.state.saveState;
+    const saveBtnLabel = sv === 'saving' ? 'Saving…' : sv === 'saved' ? 'Saved ✓' : sv === 'error' ? 'Save failed — retry' : 'Save changes';
+    const saveBtnBg = sv === 'error' ? 'oklch(0.6 0.14 30)' : sv === 'saved' ? 'oklch(0.7 0.14 155)' : 'oklch(0.86 0.13 168)';
+    const saveBtnColor = sv === 'error' || sv === 'saved' ? '#fff' : 'oklch(0.2 0.05 160)';
     const onImportApps = () => { const ta = document.querySelector('[data-app-import]'); if (ta && ta.value.trim()) { this.importApps(ta.value); ta.value = ''; } };
     const stageCounts = stageDefs.map((s) => d.apps.filter((a) => a.status === s.full).length);
     const maxStage = Math.max(1, ...stageCounts);
@@ -499,7 +537,7 @@ class Component extends DCLogic {
       gridHeightPx, hourLines, weekDays, dayColumns, calMonthName, calYear, prevWeek, nextWeek, thisWeek, calDays, onAddEvent,
       donutBg, leetTotal, leetLegend, leetTodayLabel, leetSolvedBtns, leetFailedBtns, onLeetKey, onLeetCancel, solvedList, noSolves, failedList, noFailed, failedCount, successLabel,
       sysBooks, ood, oodPctLabel, oodFrac,
-      appRows, noApps, pipeline, routines, saveApps, onImportApps,
+      appRows, noApps, pipeline, routines, saveApps, onImportApps, saveBtnLabel, saveBtnBg, saveBtnColor,
       appsTotal, appsActive, appsOffers, booksAvgLabel, leetWeekLabel,
       goals, noGoals, onAddGoal,
       weightUnit, weightLatest, weightDelta, weightDeltaColor, weightLine, weightHasLine, hasWeight, onAddWeight,

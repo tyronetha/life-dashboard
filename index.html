@@ -106,7 +106,7 @@
 
   <!-- original Claude Design template, rendered by runtime.js -->
   <template id="app-template"><div style="max-width:1340px; margin:0 auto; padding:34px 26px;">
-  <div style="display:grid; grid-template-columns:210px 1fr; background:oklch(0.965 0.014 150); border:1px solid oklch(0.9 0.02 152); border-radius:26px; overflow:hidden; box-shadow:0 40px 90px -50px oklch(0.1 0.05 160 / 0.9); min-height:760px;">
+  <div style="display:grid; grid-template-columns:210px minmax(0,1fr); background:oklch(0.965 0.014 150); border:1px solid oklch(0.9 0.02 152); border-radius:26px; overflow:hidden; box-shadow:0 40px 90px -50px oklch(0.1 0.05 160 / 0.9); min-height:760px;">
 
     <!-- sidebar -->
     <div style="background:linear-gradient(180deg, oklch(0.3 0.07 162), oklch(0.24 0.06 182)); padding:26px 18px; display:flex; flex-direction:column; gap:26px; color:oklch(0.95 0.02 150);">
@@ -516,8 +516,8 @@
             <div style="text-align:center; padding:16px; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:15px; color:oklch(0.58 0.03 158);">no applications yet — add one below 🌾</div>
           </sc-if>
           <div style="display:flex; gap:10px; align-items:center; margin-top:12px;">
-            <input type="text" placeholder="+ Company — Role  (Enter)" onKeyDown="{{ onAddApp }}" style="flex:1; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
-            <button onClick="{{ saveApps }}" style="cursor:pointer; padding:11px 18px; border-radius:12px; border:none; font-weight:700; font-size:13px; color:oklch(0.2 0.05 160); background:oklch(0.86 0.13 168); white-space:nowrap;">Save changes</button>
+            <input type="text" data-app-add placeholder="+ Company — Role  (Enter or Save)" onKeyDown="{{ onAddApp }}" style="flex:1; padding:11px 14px; border-radius:12px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.99 0.006 150); font-size:14px; outline:none;">
+            <button onClick="{{ saveApps }}" style="cursor:pointer; padding:11px 18px; border-radius:12px; border:none; font-weight:700; font-size:13px; color:{{ saveBtnColor }}; background:{{ saveBtnBg }}; white-space:nowrap;">{{ saveBtnLabel }}</button>
           </div>
           <div style="display:flex; gap:10px; align-items:stretch; margin-top:10px;">
             <textarea data-app-import placeholder="Paste rows from a spreadsheet — one per line: Company, Role, Status, Link, Notes" style="flex:1; min-height:44px; padding:10px 12px; border-radius:12px; border:1px solid oklch(0.9 0.03 152); background:oklch(0.985 0.006 150); font-size:12px; font-family:'Space Mono',monospace; outline:none; resize:vertical;"></textarea>
@@ -596,10 +596,10 @@
 </div></template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script src="config.js?v=3"></script>
-  <script src="runtime.js?v=3"></script>
-  <script src="data.js?v=3"></script>
-  <script src="dashboard.js?v=3"></script>
-  <script src="boot.js?v=3"></script>
+  <script src="config.js?v=4"></script>
+  <script src="runtime.js?v=4"></script>
+  <script src="data.js?v=4"></script>
+  <script src="dashboard.js?v=4"></script>
+  <script src="boot.js?v=4"></script>
 </body>
 </html>
