@@ -20,7 +20,9 @@ template and rendering logic are preserved verbatim; only persistence was swappe
 
 ## Auth & data
 
-- Sign-in is a **magic link** emailed via Supabase Auth — no passwords.
+- Sign-in is **username + password** (Supabase email/password auth); the username maps
+  to an internal `<name>@titan.local` email. New sign-ups are disabled, so only
+  pre-created accounts can log in.
 - Each user's dashboard is one row in the `dashboards` table (`user_id`, `data jsonb`,
   `updated_at`), guarded by row-level security so users only see their own data.
 - Data is a single JSON blob (tasks, routines, apps, solves, books, goals, weights…),
