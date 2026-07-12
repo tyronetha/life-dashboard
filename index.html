@@ -78,6 +78,41 @@
     cursor: pointer; border: none; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 700;
     background: oklch(0.86 0.13 168); color: oklch(0.2 0.05 160);
   }
+
+  /* ---- responsive layout (overrides the template's inline styles) ---- */
+  .app-outer { max-width: 1560px !important; }
+
+  @media (max-width: 1100px) {
+    .app-outer { padding: 18px 12px !important; }
+    .app-main { padding: 20px 16px !important; }
+  }
+
+  /* tablet / phone: sidebar becomes a top nav bar, columns stack */
+  @media (max-width: 900px) {
+    .app-shell { display: flex !important; flex-direction: column; }
+    .app-sidebar {
+      flex-direction: row !important; align-items: center !important;
+      gap: 10px !important; padding: 10px 12px !important;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .app-sidebar::-webkit-scrollbar { display: none; }
+    .app-brand { display: none !important; }
+    .side-today { display: none !important; }
+    .app-nav { flex-direction: row !important; gap: 6px !important; }
+    .app-nav > div { white-space: nowrap; padding: 8px 11px !important; font-size: 13px !important; }
+    .grid-2 { grid-template-columns: 1fr !important; }
+    .grid-4 { grid-template-columns: 1fr 1fr !important; }
+    .cal-card { overflow-x: auto; }
+    .cal-grid { min-width: 620px; }
+  }
+
+  @media (max-width: 560px) {
+    .app-outer { padding: 10px 6px !important; }
+    .app-main { padding: 14px 10px !important; gap: 14px !important; }
+    .grid-4 { grid-template-columns: 1fr !important; }
+    #user-pill { top: auto; bottom: 10px; right: 10px; }
+    #user-pill #user-email { max-width: 110px; }
+  }
 </style>
 </head>
 <body>
@@ -105,30 +140,30 @@
   <div id="app-wrap" style="display:none;"><div id="app"></div></div>
 
   <!-- original Claude Design template, rendered by runtime.js -->
-  <template id="app-template"><div style="max-width:1340px; margin:0 auto; padding:34px 26px;">
-  <div style="display:grid; grid-template-columns:210px minmax(0,1fr); background:oklch(0.965 0.014 150); border:1px solid oklch(0.9 0.02 152); border-radius:26px; overflow:hidden; box-shadow:0 40px 90px -50px oklch(0.1 0.05 160 / 0.9); min-height:760px;">
+  <template id="app-template"><div class="app-outer" style="max-width:1340px; margin:0 auto; padding:34px 26px;">
+  <div class="app-shell" style="display:grid; grid-template-columns:210px minmax(0,1fr); background:oklch(0.965 0.014 150); border:1px solid oklch(0.9 0.02 152); border-radius:26px; overflow:hidden; box-shadow:0 40px 90px -50px oklch(0.1 0.05 160 / 0.9); min-height:760px;">
 
     <!-- sidebar -->
-    <div style="background:linear-gradient(180deg, oklch(0.3 0.07 162), oklch(0.24 0.06 182)); padding:26px 18px; display:flex; flex-direction:column; gap:26px; color:oklch(0.95 0.02 150);">
-      <div>
+    <div class="app-sidebar" style="background:linear-gradient(180deg, oklch(0.3 0.07 162), oklch(0.24 0.06 182)); padding:26px 18px; display:flex; flex-direction:column; gap:26px; color:oklch(0.95 0.02 150);">
+      <div class="app-brand">
         <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:30px; letter-spacing:0.34em; text-indent:0.34em;">L I F E</div>
         <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.16em; color:oklch(0.82 0.08 165); text-transform:uppercase; margin-top:4px;">a life planner</div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:5px;">
+      <div class="app-nav" style="display:flex; flex-direction:column; gap:5px;">
         <sc-for list="{{ navSide }}" as="n" hint-placeholder-count="6">
           <div onClick="{{ n.go }}" style="display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:11px; font-weight:600; font-size:14px; cursor:pointer; color:{{ n.color }}; background:{{ n.bg }};">
             <span style="font-size:16px;">{{ n.emoji }}</span>{{ n.label }}
           </div>
         </sc-for>
       </div>
-      <div style="margin-top:auto; padding:14px; border-radius:14px; background:oklch(0.98 0.02 150 / 0.1); border:1px solid oklch(0.8 0.1 168 / 0.25);">
+      <div class="side-today" style="margin-top:auto; padding:14px; border-radius:14px; background:oklch(0.98 0.02 150 / 0.1); border:1px solid oklch(0.8 0.1 168 / 0.25);">
         <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.12em; color:oklch(0.84 0.08 165); text-transform:uppercase;">today</div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:600;">{{ doneLabel }} done</div>
       </div>
     </div>
 
     <!-- main -->
-    <div style="padding:28px; display:flex; flex-direction:column; gap:20px;">
+    <div class="app-main" style="padding:28px; display:flex; flex-direction:column; gap:20px;">
 
       <!-- header -->
       <div>
@@ -140,7 +175,7 @@
       <!-- ============ HOME ============ -->
       <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
       <div style="display:flex; flex-direction:column; gap:20px;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+        <div class="grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
           <!-- daily card -->
           <div style="background:oklch(0.99 0.006 150); border:1px solid oklch(0.9 0.02 152); border-radius:18px; padding:22px; display:flex; flex-direction:column;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -183,7 +218,7 @@
           </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:start;">
+        <div class="grid-4" style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:start;">
           <!-- weight -->
           <div style="background:oklch(0.95 0.03 150); border:1px solid oklch(0.86 0.045 152); border-radius:18px; padding:20px; display:flex; flex-direction:column;">
             <p style="font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:16px; letter-spacing:0.2em; color:oklch(0.4 0.1 158); margin:0 0 12px; white-space:nowrap;">🍃 w e i g h t</p>
@@ -255,7 +290,7 @@
 
       <!-- ============ CALENDAR (week time-grid) ============ -->
       <sc-if value="{{ isCal }}" hint-placeholder-val="{{ false }}">
-      <div style="background:oklch(0.99 0.006 150); border:1px solid oklch(0.9 0.02 152); border-radius:18px; padding:20px;">
+      <div class="cal-card" style="background:oklch(0.99 0.006 150); border:1px solid oklch(0.9 0.02 152); border-radius:18px; padding:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
           <div style="display:flex; align-items:baseline; gap:12px;">
             <p style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; color:oklch(0.3 0.05 158); margin:0;">{{ calMonthName }}</p>
@@ -283,7 +318,7 @@
         </div>
 
         <!-- day headers -->
-        <div style="display:grid; grid-template-columns:54px repeat(7,1fr); gap:0;">
+        <div class="cal-grid" style="display:grid; grid-template-columns:54px repeat(7,1fr); gap:0;">
           <div></div>
           <sc-for list="{{ weekDays }}" as="wd" hint-placeholder-count="7">
             <div style="text-align:center; padding:6px 0 10px;">
@@ -294,7 +329,7 @@
         </div>
 
         <!-- all-day row -->
-        <div style="display:grid; grid-template-columns:54px repeat(7,1fr); border-top:1px solid oklch(0.92 0.016 152); border-bottom:1px solid oklch(0.92 0.016 152);">
+        <div class="cal-grid" style="display:grid; grid-template-columns:54px repeat(7,1fr); border-top:1px solid oklch(0.92 0.016 152); border-bottom:1px solid oklch(0.92 0.016 152);">
           <div style="display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-family:'Space Mono',monospace; font-size:9px; color:oklch(0.6 0.03 158); text-transform:uppercase;">all-day</div>
           <sc-for list="{{ dayColumns }}" as="col" hint-placeholder-count="7">
             <div style="min-height:30px; padding:5px 4px; border-left:1px solid oklch(0.94 0.014 152); display:flex; flex-direction:column; gap:3px;">
@@ -312,7 +347,7 @@
 
         <!-- time grid -->
         <div class="lc-scroll" style="max-height:600px; overflow-y:auto; margin-top:0;">
-          <div style="display:grid; grid-template-columns:54px repeat(7,1fr);">
+          <div class="cal-grid" style="display:grid; grid-template-columns:54px repeat(7,1fr);">
             <!-- hour gutter -->
             <div style="position:relative; height:{{ gridHeightPx }};">
               <sc-for list="{{ hourLines }}" as="h" hint-placeholder-count="17">
@@ -398,7 +433,7 @@
 
       <!-- ============ LEETCODE ============ -->
       <sc-if value="{{ isLeet }}" hint-placeholder-val="{{ false }}">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+      <div class="grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
         <div style="background:oklch(0.99 0.006 150); border:1px solid oklch(0.9 0.02 152); border-radius:18px; padding:22px;">
           <p style="font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:19px; letter-spacing:0.18em; color:oklch(0.4 0.1 158); margin:0 0 16px; white-space:nowrap;">🌱 l e e t c o d e</p>
           <div style="display:flex; align-items:center; gap:22px;">
