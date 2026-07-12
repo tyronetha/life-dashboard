@@ -51,6 +51,7 @@ class Component extends DCLogic {
       ],
       weights: [],
       weightUnit: 'lb',
+      counter: 0,
       quotes: [
         '“A line you live by — tap to make it yours.”',
         '“Something to remember on the hard days.”',
@@ -317,6 +318,8 @@ class Component extends DCLogic {
   setGoal = (id, delta) => this.mutate((d) => { const g = d.goals.find((x) => x.id === id); if (g) g.pct = Math.max(0, Math.min(100, g.pct + delta)); });
   removeGoal = (id) => this.mutate((d) => { d.goals = d.goals.filter((x) => x.id !== id); });
   addWeight = (val) => this.mutate((d) => { const t = this.todayISO(); d.weights = d.weights.filter((w) => w.date !== t); d.weights.push({ date: t, v: val }); });
+  bumpCounter = (delta) => this.mutate((d) => { d.counter = (d.counter || 0) + delta; });
+  resetCounter = () => this.mutate((d) => { d.counter = 0; });
 
   // recurring weekday routine → timed calendar blocks
   templateFor(dow) {
@@ -383,7 +386,7 @@ class Component extends DCLogic {
         { key: 'prep', label: 'Prep', v: 'prep' },
       ].map((n) => ({ ...n, icon: ic[n.key], go: () => this.setView(n.v), color: view === n.v ? 'oklch(0.26 0.06 150)' : 'oklch(0.95 0.02 150)', bg: view === n.v ? 'oklch(0.86 0.14 88)' : 'transparent' })),
     };
-    if (!d) return { ...base, doneLabel: '—', donePctLabel: '—', homeCounterBg: 'oklch(0.9 0.03 152)' };
+    if (!d) return { ...base, doneLabel: '—', donePctLabel: '—', homeCounterBg: 'oklch(0.9 0.03 152)', counterValue: 0, counterInc: () => {}, counterDec: () => {}, counterReset: () => {} };
 
     const today = this.todayISO();
 
@@ -668,6 +671,12 @@ class Component extends DCLogic {
     const donePctLabel = `${donePctNum}%`;
     const homeCounterBg = `conic-gradient(oklch(0.62 0.14 150) 0 ${donePctNum}%, oklch(0.9 0.03 152) 0 100%)`;
 
+    // ---- basic header counter (persisted in the blob) ----
+    const counterValue = d.counter || 0;
+    const counterInc = () => this.bumpCounter(1);
+    const counterDec = () => this.bumpCounter(-1);
+    const counterReset = () => this.resetCounter();
+
     return {
       ...base,
       todayTasks, doneLabel, noTasks, todayDailyTasks, todayOneoffTasks, noDailyToday, noOneoffToday, dailyDoneLabel, oneoffDoneLabel, oneOffs, noOneOffs, archive, noArchive, archiveCount,
@@ -684,6 +693,7 @@ class Component extends DCLogic {
       addAppFromForm, onAppKey,
       leetDiffPicker, leetOutcomePicker, addLeetFromForm, onLeetKey2, leetAddBtnBg, leetAddBtnLabel,
       donePctLabel, homeCounterBg,
+      counterValue, counterInc, counterDec, counterReset,
     };
   }
 }

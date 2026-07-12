@@ -176,24 +176,34 @@
     <div class="app-main" style="padding:28px; display:flex; flex-direction:column; gap:20px;">
 
       <!-- header -->
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap;">
         <div>
           <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.18em; color:oklch(0.52 0.08 70); text-transform:uppercase;">{{ todayLabel }}</div>
           <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:34px; color:oklch(0.3 0.05 158); margin-top:2px;">{{ greeting }}, {{ name }}.</div>
           <div style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:17px; color:oklch(0.52 0.05 70);">personality dictates destiny.</div>
         </div>
-        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
-          <div style="flex:0 0 auto; display:flex; align-items:center; gap:13px; background:oklch(0.99 0.006 150 / 0.55); border:1px solid oklch(0.9 0.03 100); border-radius:16px; padding:10px 16px 10px 12px;">
-            <div style="position:relative; width:46px; height:46px;">
-              <div style="width:46px; height:46px; border-radius:50%; background:{{ homeCounterBg }}; -webkit-mask:radial-gradient(circle, transparent 56%, #000 57%); mask:radial-gradient(circle, transparent 56%, #000 57%);"></div>
-              <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; color:oklch(0.4 0.08 158);">{{ donePctLabel }}</div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:0 0 auto; display:flex; align-items:center; gap:13px; background:oklch(0.99 0.006 150 / 0.55); border:1px solid oklch(0.9 0.03 100); border-radius:16px; padding:10px 16px 10px 12px;">
+              <div style="position:relative; width:46px; height:46px;">
+                <div style="width:46px; height:46px; border-radius:50%; background:{{ homeCounterBg }}; -webkit-mask:radial-gradient(circle, transparent 56%, #000 57%); mask:radial-gradient(circle, transparent 56%, #000 57%);"></div>
+                <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; color:oklch(0.4 0.08 158);">{{ donePctLabel }}</div>
+              </div>
+              <div>
+                <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; line-height:1; color:oklch(0.3 0.05 158);">{{ doneLabel }}</div>
+                <div style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.12em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-top:2px;">done today</div>
+              </div>
             </div>
-            <div>
-              <div style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; line-height:1; color:oklch(0.3 0.05 158);">{{ doneLabel }}</div>
-              <div style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.12em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-top:2px;">done today</div>
-            </div>
+          </sc-if>
+          <!-- basic counter -->
+          <div style="flex:0 0 auto; display:flex; align-items:center; gap:10px; background:oklch(0.99 0.006 150 / 0.55); border:1px solid oklch(0.9 0.03 100); border-radius:16px; padding:10px 14px;">
+            <span style="font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:0.12em; text-transform:uppercase; color:oklch(0.55 0.05 158);">counter</span>
+            <span onClick="{{ counterDec }}" style="cursor:pointer; width:26px; height:26px; border-radius:8px; background:oklch(0.94 0.02 152); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:oklch(0.4 0.05 158); user-select:none;">−</span>
+            <span style="font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; line-height:1; min-width:36px; text-align:center; color:oklch(0.3 0.05 158);">{{ counterValue }}</span>
+            <span onClick="{{ counterInc }}" style="cursor:pointer; width:26px; height:26px; border-radius:8px; background:oklch(0.86 0.14 88); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:oklch(0.26 0.06 150); user-select:none;">+</span>
+            <span onClick="{{ counterReset }}" title="reset" style="cursor:pointer; margin-left:2px; font-size:13px; color:oklch(0.55 0.05 158); user-select:none;">↺</span>
           </div>
-        </sc-if>
+        </div>
       </div>
 
       <!-- ============ HOME ============ -->
@@ -696,10 +706,10 @@
 </div></template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script src="config.js?v=9"></script>
-  <script src="runtime.js?v=9"></script>
-  <script src="data.js?v=9"></script>
-  <script src="dashboard.js?v=9"></script>
-  <script src="boot.js?v=9"></script>
+  <script src="config.js?v=10"></script>
+  <script src="runtime.js?v=10"></script>
+  <script src="data.js?v=10"></script>
+  <script src="dashboard.js?v=10"></script>
+  <script src="boot.js?v=10"></script>
 </body>
 </html>
