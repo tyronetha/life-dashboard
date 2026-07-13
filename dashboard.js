@@ -478,14 +478,20 @@ class Component extends DCLogic {
     if (draft) {
       calDraftOpen = true;
       const dd = new Date(draft.iso + 'T00:00:00');
-      const commit = () => { const i = document.querySelector('[data-cal-title]'); const title = i ? i.value.trim() : ''; if (!title) { this.setState({ calDraft: null }); return; } this.addEvent(title, draft.iso, draft.start, draft.end, draft.color); this.setState({ calDraft: null }); };
+      const durMins = Math.max(5, draft.end - draft.start);
+      const commit = () => { const i = document.querySelector('[data-cal-title]'); const title = i ? i.value.trim() : ''; if (!title) { this.setState({ calDraft: null }); return; } const end = draft.end > draft.start ? draft.end : draft.start + 30; this.addEvent(title, draft.iso, draft.start, end, draft.color); this.setState({ calDraft: null }); };
       const cancel = () => this.setState({ calDraft: null });
+      const setDur = (mins) => this.setState((s) => ({ calDraft: { ...s.calDraft, end: s.calDraft.start + Math.max(0, mins) } }));
+      const durText = (m) => { const h = Math.floor(m / 60), mm = m % 60; return (h ? `${h}h` : '') + (mm ? ` ${mm}m` : '') || '0m'; };
       const vw = (typeof window !== 'undefined' ? window.innerWidth : 1200), vh = (typeof window !== 'undefined' ? window.innerHeight : 800);
       calDraft = {
         whenLabel: `${days[dd.getDay()]} · ${this.minLabel(draft.start)} – ${this.minLabel(draft.end)}`,
         left: `${Math.max(12, Math.min(draft.x + 8, vw - 262))}px`,
-        top: `${Math.max(12, Math.min(draft.y, vh - 300))}px`,
-        durChips: [30, 60, 90, 120].map((m) => ({ label: m < 60 ? `${m}m` : (m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`), bg: (draft.end - draft.start) === m ? 'oklch(0.55 0.13 160)' : 'oklch(0.94 0.02 152)', color: (draft.end - draft.start) === m ? '#fff' : 'oklch(0.42 0.05 158)', set: () => this.setState((s) => ({ calDraft: { ...s.calDraft, end: s.calDraft.start + m } })) })),
+        top: `${Math.max(12, Math.min(draft.y, vh - 340))}px`,
+        durH: Math.floor(durMins / 60), durM: durMins % 60, durLabel: durText(durMins),
+        onDurH: (e) => { const h = Math.max(0, Math.min(18, parseInt(e.target.value, 10) || 0)); const mm = (draft.end - draft.start) % 60; setDur(h * 60 + mm); },
+        onDurM: (e) => { const mm = Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0)); const h = Math.floor((draft.end - draft.start) / 60); setDur(h * 60 + mm); },
+        durChips: [30, 60, 90, 120].map((m) => ({ label: m < 60 ? `${m}m` : (m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`), bg: (draft.end - draft.start) === m ? 'oklch(0.55 0.13 160)' : 'oklch(0.94 0.02 152)', color: (draft.end - draft.start) === m ? '#fff' : 'oklch(0.42 0.05 158)', set: () => setDur(m) })),
         colorDots: CAL_COLORS.map((c) => ({ color: c, ring: draft.color === c ? `0 0 0 2px oklch(0.99 0.006 150), 0 0 0 4px ${c}` : 'none', set: () => this.setState((s) => ({ calDraft: { ...s.calDraft, color: c } })) })),
         onKey: (e) => { if (e.key === 'Enter') { if (e.preventDefault) e.preventDefault(); commit(); } else if (e.key === 'Escape') { cancel(); } },
         commit, cancel,

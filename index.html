@@ -398,10 +398,17 @@
           <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.52 0.06 158); margin-bottom:9px;">{{ calDraft.whenLabel }}</div>
           <input type="text" data-cal-title placeholder="event name…" onKeyDown="{{ calDraft.onKey }}" style="width:100%; padding:10px 13px; border-radius:11px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.985 0.006 150); font-size:14px; font-weight:600; outline:none; margin-bottom:13px;">
           <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-bottom:6px;">duration</div>
-          <div style="display:flex; gap:6px; margin-bottom:13px;">
+          <div style="display:flex; gap:6px; margin-bottom:9px;">
             <sc-for list="{{ calDraft.durChips }}" as="c" hint-placeholder-count="4">
               <span onClick="{{ c.set }}" style="flex:1; text-align:center; cursor:pointer; padding:7px 0; border-radius:9px; font-family:'Space Mono',monospace; font-size:12px; font-weight:700; background:{{ c.bg }}; color:{{ c.color }};">{{ c.label }}</span>
             </sc-for>
+          </div>
+          <div style="display:flex; align-items:center; gap:7px; margin-bottom:13px;">
+            <input type="number" min="0" max="18" value="{{ calDraft.durH }}" onInput="{{ calDraft.onDurH }}" onKeyDown="{{ calDraft.onKey }}" style="width:52px; padding:8px 9px; border-radius:9px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.985 0.006 150); font-size:13px; text-align:center; outline:none;">
+            <span style="font-family:'Space Mono',monospace; font-size:11px; color:oklch(0.52 0.05 158);">h</span>
+            <input type="number" min="0" max="59" step="5" value="{{ calDraft.durM }}" onInput="{{ calDraft.onDurM }}" onKeyDown="{{ calDraft.onKey }}" style="width:52px; padding:8px 9px; border-radius:9px; border:1px solid oklch(0.88 0.03 152); background:oklch(0.985 0.006 150); font-size:13px; text-align:center; outline:none;">
+            <span style="font-family:'Space Mono',monospace; font-size:11px; color:oklch(0.52 0.05 158);">min</span>
+            <span style="flex:1; text-align:right; font-family:'Space Mono',monospace; font-size:10px; color:oklch(0.58 0.05 158);">= {{ calDraft.durLabel }}</span>
           </div>
           <div style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:oklch(0.55 0.05 158); margin-bottom:7px;">colour</div>
           <div style="display:flex; gap:11px; margin-bottom:15px; padding:2px;">
@@ -706,10 +713,10 @@
 </div></template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script src="config.js?v=10"></script>
-  <script src="runtime.js?v=10"></script>
-  <script src="data.js?v=10"></script>
-  <script src="dashboard.js?v=10"></script>
-  <script src="boot.js?v=10"></script>
+  <script src="config.js?v=11"></script>
+  <script src="runtime.js?v=11"></script>
+  <script src="data.js?v=11"></script>
+  <script src="dashboard.js?v=11"></script>
+  <script src="boot.js?v=11"></script>
 </body>
 </html>
