@@ -1,5 +1,5 @@
 /*
- * Boot: Supabase auth (magic link), the login gate, and mounting the dashboard
+ * Boot: Supabase auth (username + password), the login gate, and mounting the dashboard
  * once signed in. Data access lives in data.js (window.DB / window.SB).
  */
 (function () {

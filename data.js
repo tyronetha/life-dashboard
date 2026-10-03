@@ -59,7 +59,11 @@
         SB.from('events').select('*'),
         SB.from('event_exceptions').select('*'),
       ]);
-      for (var i = 0; i < r.length; i++) if (r[i].error) console.error('loadTables', r[i].error);
+      // Fail loudly on any error: returning empty arrays would make a transient
+      // failure look like a brand-new account and re-trigger first-run seeding.
+      var bad = null;
+      for (var i = 0; i < r.length; i++) if (r[i].error) { console.error('loadTables', r[i].error); bad = r[i].error; }
+      if (bad) throw new Error('loadTables: ' + (bad.message || bad));
       var pctById = {};
       (r[4].data || []).forEach(function (p) { pctById[p.id] = p.pct; });
       return {
@@ -89,13 +93,22 @@
     setAppStatus(id, status) { return SB.from('applications').update({ status: status, updated_at: new Date().toISOString() }).eq('id', id).then(logErr('setAppStatus')); },
     deleteApp(id)        { return SB.from('applications').delete().eq('id', id).then(logErr('deleteApp')); },
     upsertApps(rows) {
-      var out = rows.map(function (a) {
-        return { id: a.id, company: a.company, role: a.role || null, status: a.status || 'Wishlist',
-                 link: a.link || null, location: a.location || null,
-                 applied_on: a.appliedOn ? a.appliedOn : null, notes: a.notes || null,
-                 sort_order: a.sortOrder || 0 };
-      }).filter(function (a) { return (a.company || '').trim() !== ''; });
-      return SB.rpc('upsert_applications', { rows: out }).then(logErr('upsertApps'));
+      var keep = [], dropIds = [];
+      rows.forEach(function (a) {
+        if ((a.company || '').trim() === '') { if (a.id) dropIds.push(a.id); return; }
+        keep.push({ id: a.id, company: a.company, role: a.role || null, status: a.status || 'Wishlist',
+                    link: a.link || null, location: a.location || null,
+                    applied_on: a.appliedOn ? a.appliedOn : null, notes: a.notes || null,
+                    sort_order: a.sortOrder || 0 });
+      });
+      var ops = [SB.rpc('upsert_applications', { rows: keep }).then(logErr('upsertApps'))];
+      // A blanked-out company means the row was removed in the grid — delete it
+      // server-side too, or it resurrects on the next load.
+      if (dropIds.length) ops.push(SB.from('applications').delete().in('id', dropIds).then(logErr('upsertApps-delete')));
+      return Promise.all(ops).then(function (rs) {
+        for (var i = 0; i < rs.length; i++) if (rs[i] && rs[i].error) return rs[i];
+        return rs[0];
+      });
     },
 
     // ---------- books / chapters ----------

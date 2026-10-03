@@ -44,7 +44,7 @@ SQL lives in [`supabase/migrations/`](supabase/migrations/):
 | `book_progress` (view) | `done / total` per book, `security_invoker` so RLS applies. |
 | `upsert_applications(rows jsonb)` | Batch upsert so an editable grid saves many rows in one round-trip. |
 | `generate_day()` | Client fallback: materialize today's habits + roll unfinished one-offs forward, fixed **America/New_York**. Idempotent. |
-| `generate_all_days()` + `pg_cron` | Nightly job (05:10 UTC) that runs generation for every user even when the app is closed, and prunes >1yr history. |
+| `generate_all_days()` + `pg_cron` | Nightly job (09:00 UTC — 5 AM ET) that runs generation for every user even when the app is closed, and prunes >1yr history. |
 
 Every table has RLS (`user_id = auth.uid()`). The `dashboards` blob is retained as a
 backup and for free-form bits (quotes, "currently", weights) until each feature's UI is
@@ -65,8 +65,8 @@ python3 -m http.server 4137
 # open http://localhost:4137
 ```
 
-For magic-link sign-in to work locally, add `http://localhost:4137` to the project's
-**Auth → URL Configuration → Redirect URLs** in the Supabase dashboard.
+Sign-in is username + password, so no Supabase redirect-URL configuration is
+needed for local development.
 
 ## Deploy
 

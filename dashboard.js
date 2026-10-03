@@ -163,8 +163,10 @@ class Component extends DCLogic {
     d.tasks.forEach((t) => { if (t.type === 'One-off' && !t.done && !t.archived && t.doDate && t.doDate < today) t.archived = true; });
     d.tasks.forEach((t) => { if (t.type === 'One-off' && !t.archived && !t.doDate) t.doDate = this.tomorrowISO(); });
     d.routines.filter((r) => r.active).sort((a, b) => a.order - b.order).forEach((r) => {
-      const exists = d.tasks.some((t) => t.type === 'Daily' && t.doDate === today && t.title === r.name && !t.archived);
-      if (!exists) d.tasks.push({ id: 'd-' + r.id + '-' + today, title: r.name, type: 'Daily', tag: r.tag || 'Work', done: false, doDate: today, whatToDo: r.whatToDo || '', archived: false });
+      // Match by routine id (title only as a fallback for old cached tasks that
+      // predate routineId) so renaming a habit can't duplicate its daily task.
+      const exists = d.tasks.some((t) => t.type === 'Daily' && t.doDate === today && !t.archived && (t.routineId ? t.routineId === r.id : t.title === r.name));
+      if (!exists) d.tasks.push({ id: 'd-' + r.id + '-' + today, routineId: r.id, title: r.name, type: 'Daily', tag: r.tag || 'Work', done: false, doDate: today, whatToDo: r.whatToDo || '', archived: false });
     });
     d.lastGen = today;
     return d;
@@ -346,10 +348,11 @@ class Component extends DCLogic {
   }
   minLabel(m) { let h = Math.floor(m / 60), mm = m % 60; const ap = h >= 12 ? 'PM' : 'AM'; let hh = h % 12; if (hh === 0) hh = 12; return `${hh}:${String(mm).padStart(2, '0')} ${ap}`; }
 
-  // Hand-drawn nav icons from the updated design — SVG strings (the runtime
-  // turns a bound "<svg…" string into a real element).
+  // Hand-drawn nav icons from the updated design. Wrapped as { __svg } so the
+  // runtime knows this markup is trusted; plain bound strings are never
+  // parsed as HTML.
   icons() {
-    const wrap = (inner) => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;">${inner}</svg>`;
+    const wrap = (inner) => ({ __svg: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;">${inner}</svg>` });
     return {
       home: wrap('<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>'),
       calendar: wrap('<path d="M12 21v-8"/><path d="M12 13c0-3.2-2.2-5.2-6.2-5.2C5.8 11 8 13 12 13Z"/><path d="M12 12c0-3.2 2.2-5.2 6.2-5.2C18.2 10 16 12 12 12Z"/>'),
@@ -632,11 +635,28 @@ class Component extends DCLogic {
       weightDelta = diff === 0 ? '±0' : (diff > 0 ? `▲ ${diff}` : `▼ ${Math.abs(diff)}`);
       weightDeltaColor = diff > 0 ? 'oklch(0.6 0.12 40)' : diff < 0 ? 'oklch(0.6 0.13 158)' : 'oklch(0.56 0.03 158)';
     }
-    let weightLine = '', weightHasLine = false;
+    let weightLine = '', weightHasLine = false, weightPoints = [];
     if (wsorted.length >= 2) {
       const vals = wsorted.map((w) => +w.v); const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1; const W = 240, H = 56, pad = 6;
-      weightLine = wsorted.map((w, i) => { const x = (i / (wsorted.length - 1)) * W; const yy = H - pad - ((+w.v - mn) / rng) * (H - 2 * pad); return `${x.toFixed(1)},${yy.toFixed(1)}`; }).join(' ');
+      const n = wsorted.length, step = 100 / (n - 1);
+      const xy = wsorted.map((w, i) => ({ x: (i / (n - 1)) * W, y: H - pad - ((+w.v - mn) / rng) * (H - 2 * pad) }));
+      weightLine = xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
       weightHasLine = true;
+      // Hover zones: one strip per entry, centred on its point; CSS :hover reveals the dot + tooltip.
+      weightPoints = wsorted.map((w, i) => {
+        const xPct = (xy[i].x / W) * 100, yPct = (xy[i].y / H) * 100;
+        const left = Math.max(0, xPct - step / 2), right = Math.min(100, xPct + step / 2);
+        const prev = i > 0 ? +(w.v - wsorted[i - 1].v).toFixed(1) : null;
+        const chg = prev === null ? '' : prev === 0 ? ' ±0' : prev > 0 ? ` ▲${prev}` : ` ▼${Math.abs(prev)}`;
+        const dt = new Date(`${w.date}T00:00:00`);
+        const dateLabel = isNaN(dt) ? w.date : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return {
+          label: `${dateLabel} · ${w.v} ${weightUnit}${chg}`,
+          zoneStyle: `left:${left.toFixed(2)}%; width:${(right - left).toFixed(2)}%;`,
+          dotStyle: `left:${(((xPct - left) / (right - left)) * 100).toFixed(2)}%; top:${yPct.toFixed(2)}%;`,
+          tipStyle: `left:${(((xPct - left) / (right - left)) * 100).toFixed(2)}%; bottom:calc(${(100 - yPct).toFixed(2)}% + 9px); transform:translateX(-${xPct.toFixed(2)}%);`,
+        };
+      });
     }
     const onAddWeight = (e) => { if (e.key === 'Enter') { const v = parseFloat(e.target.value); if (!isNaN(v)) { this.addWeight(v); e.target.value = ''; } } };
     const onAddGoal = (e) => { if (e.key === 'Enter' && e.target.value.trim()) { this.addGoal(e.target.value.trim()); e.target.value = ''; } };
@@ -692,7 +712,7 @@ class Component extends DCLogic {
       appRows, noApps, pipeline, routines, saveApps, onImportApps, saveBtnLabel, saveBtnBg, saveBtnColor,
       appsTotal, appsActive, appsOffers, booksAvgLabel, leetWeekLabel,
       goals, noGoals, onAddGoal,
-      weightUnit, weightLatest, weightDelta, weightDeltaColor, weightLine, weightHasLine, hasWeight, onAddWeight,
+      weightUnit, weightLatest, weightDelta, weightDeltaColor, weightLine, weightHasLine, weightPoints, hasWeight, onAddWeight,
       quotes, currently,
       onAddTaskToday, onAddOneOff, onAddRoutine, onAddApp,
       addHabitFromForm, onHabitKey, habitSuggestions,

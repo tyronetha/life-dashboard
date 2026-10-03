@@ -47,10 +47,12 @@
       var t = node.data;
       if (t.indexOf('{{') === -1) { destParent.appendChild(document.createTextNode(t)); return; }
       var v = interp(t, scopes);
-      // A bound value that is itself SVG markup (e.g. nav icons) becomes a real element.
-      if (typeof v === 'string' && v.lastIndexOf('<svg', 0) === 0) {
+      // Only values explicitly wrapped as trusted markup ({ __svg: '<svg…' },
+      // see icons() in dashboard.js) become elements. Plain strings never take
+      // the innerHTML path, so user-entered text can't inject HTML.
+      if (v && typeof v === 'object' && typeof v.__svg === 'string') {
         var host = document.createElement('div');
-        host.innerHTML = v;
+        host.innerHTML = v.__svg;
         while (host.firstChild) destParent.appendChild(host.firstChild);
         return;
       }
